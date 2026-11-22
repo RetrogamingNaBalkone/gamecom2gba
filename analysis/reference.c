@@ -56,6 +56,9 @@ int main(int argc, char **argv) {
         gcsystem_load_external(&machine, argv[2]) ||
         gcsystem_load_cart(&machine, argv[3])) return 1;
     gcsystem_reset(&machine);
+    const char *nvram=getenv("GAMECOM_LOAD_NVRAM");
+    const char *restore=getenv("GAMECOM_LOAD_NVRAM_FRAME");
+    int restore_frame=restore ? atoi(restore) : 0;
     const char *trace = getenv("GAMECOM_TRACE_FRAME");
     const char *walk = getenv("GAMECOM_TRACE_WALK");
     int walk_start = walk ? atoi(walk) : -1;
@@ -72,6 +75,13 @@ int main(int argc, char **argv) {
         for (int c = 0; c < 13; c++)
             gcbus_set_touch(&machine.bus, c, c == col ? 1u << row : 0);
         for (int f = 0; f < frames; f++) {
+            if (nvram && frame_number==restore_frame) {
+                FILE *file=fopen(nvram,"rb");
+                if (!file) return 1;
+                int valid=fread(machine.bus.ram+0xe000,1,8192,file)==8192 && fgetc(file)==EOF;
+                fclose(file);
+                if (!valid) return 2;
+            }
             if (frame_number == combat_start && machine.cpu.wr != trace_write)
                 machine.cpu.wr = combat_write;
             if (trace && frame_number == atoi(trace)) machine.cpu.wr = trace_write;
@@ -96,6 +106,13 @@ int main(int argc, char **argv) {
         }
     }
     if (read != EOF) return 2;
+    nvram=getenv("GAMECOM_SAVE_NVRAM");
+    if (nvram) {
+        FILE *file=fopen(nvram,"wb");
+        if (!file) return 1;
+        int valid=fwrite(machine.bus.ram+0xe000,1,8192,file)==8192;
+        if (fclose(file)!=0 || !valid) return 1;
+    }
     if (getenv("GAMECOM_TRACE_ACTORS")) {
         for (int p=0x224; p<0x2fc && machine.bus.ram[p]!=0xff; p+=12) {
             fprintf(stderr,"actor %d",(p-0x224)/12);

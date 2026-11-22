@@ -1,5 +1,5 @@
 param([Parameter(Mandatory)][string]$Cartridge, [string]$GhidraHome = $env:GHIDRA_HOME,
-      [ValidateSet('Startup','Actors')][string]$View='Startup')
+      [ValidateSet('Startup','Actors','Menu')][string]$View='Startup')
 $ErrorActionPreference = 'Stop'
 if (!$GhidraHome) { $GhidraHome = "$env:LOCALAPPDATA/Programs/Ghidra/ghidra_12.1.2_PUBLIC" }
 $root = Split-Path $PSScriptRoot
@@ -29,8 +29,9 @@ try {
     $cart = [IO.File]::ReadAllBytes($source)
     $banks = [byte[]]::new(3 * 8192)
     $project="Duke$View"
-    $scriptName=if ($View -eq 'Actors') { 'DukeActors.java' } else { 'DukeEntry.java' }
-    $pages=if ($View -eq 'Actors') { @(0x20,0x22,0x26) } else { @(0x20,0x21,0x26) }
+    $scriptName=@{Startup='DukeEntry.java'; Actors='DukeActors.java'; Menu='DukeMenu.java'}[$View]
+    $menuBank=@{Startup=0x21; Actors=0x22; Menu=0x23}[$View]
+    $pages=@(0x20,$menuBank,0x26)
     for ($i=0; $i -lt $pages.Count; $i++) {
         [Array]::Copy($cart, $pages[$i] * 8192, $banks, $i * 8192, 8192)
     }

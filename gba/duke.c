@@ -1,7 +1,7 @@
 #include <stdint.h>
 
 #define REG16(a) (*(volatile uint16_t *)(a))
-enum { A = 1, B = 2, START = 8, R = 256, L = 512 };
+enum { A = 1, B = 2, SELECT = 4, START = 8, R = 256, L = 512 };
 enum { RIGHT = 16, LEFT = 32, UP = 64, DOWN = 128 };
 extern const uint8_t assets[];
 enum { SHOT = 4470, FLASH = 2194, RELOAD = 21395 };
@@ -213,6 +213,29 @@ struct Weapon {
 struct Inventory {
     unsigned key, armor, health, shells, rockets, weapons;
 };
+
+/* Record six separate button edges while paused, as at 23:6A42.
+   The two original lower-right touches map to Select. */
+static void pause_input(uint16_t sequence[6],unsigned *count,unsigned pressed,
+                        struct Inventory *inventory,struct Weapon *weapon) {
+    static const uint16_t items[]={A,L,B,L,SELECT,SELECT};
+    static const uint16_t weapons[]={R,A,B,A,B,B};
+    if (!pressed) return;
+    sequence[(*count)++]=pressed;
+    if (*count<6) return;
+    *count=0;
+    int give_items=1,give_weapons=1;
+    for (unsigned i=0;i<6;i++) {
+        give_items&=sequence[i]==items[i];
+        give_weapons&=sequence[i]==weapons[i];
+    }
+    if (give_items) { inventory->key=1; inventory->armor=100; }
+    if (give_weapons) {
+        inventory->weapons=7;
+        inventory->shells=inventory->rockets=50;
+        weapon->remaining=200;
+    }
+}
 
 static int corridor_step_clear(const struct Encounter *enc,const struct Enemy *enemy,const uint8_t *room) {
     unsigned next=enemy->z-1;
@@ -442,6 +465,8 @@ void play(void) {
     unsigned old_keys = START | A;
     unsigned last_health=255,last_armor=255,last_ammo=255;
     int paused = 0;
+    uint16_t pause_sequence[6];
+    unsigned pause_count=0;
     int entering = 1;
     for (;;) {
         while (REG16(0x04000006) >= 160) {}
@@ -518,7 +543,8 @@ void play(void) {
             REG16(0x04000000)=0x3140;
             continue;
         }
-        if (pressed & START) paused = !paused;
+        if (pressed & START) { paused=!paused; pause_count=0; }
+        else if (paused) pause_input(pause_sequence,&pause_count,pressed,&inventory,&w);
         old_keys = keys;
         if (!paused) {
             int changed=animate_hits(&encounter,dt);
@@ -557,7 +583,8 @@ void play(void) {
                                 draw_enemies(&atlas,&encounter,lane,depth);
                                 if (room[5+4*i]==254 && (open_doors&bit)) {
                                     next_level=level+1;
-                                    if (next_level==4 || next_level==9 || next_level==14) next_level++;
+                                    unsigned bonus=next_level==4 ? 4 : next_level==9 ? 2 : next_level==14 ? 1 : 0;
+                                    if (bonus && !(levels[5+levels[0]]&bonus)) next_level++;
                                     if (next_level==levels[0]) next_level=0;
                                     exit_active=1;
                                     exit_time=0;

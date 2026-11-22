@@ -4,7 +4,7 @@ using System.Reflection;
 
 internal static class Program
 {
-    static void WritePreview(byte[] cart, Stream destination)
+    static void WritePreview(byte[] cart, Stream destination, int bonusFlags)
     {
         using (Stream runtime = Assembly.GetExecutingAssembly().GetManifestResourceStream("runtime"))
             runtime.CopyTo(destination);
@@ -17,15 +17,16 @@ internal static class Program
         {
             Tiles.Palette(output, 0, 0xdfff8f, 0x6f8f4f, 0x0f4f2f, 0, 0xb3b4af, 0x292a2a);
             Tiles.Write(output, screen);
-            Duke.WriteOpening(cart, output);
+            Duke.WriteOpening(cart, output, bonusFlags);
         }
     }
 
     static int Main(string[] args)
     {
-        if (args.Length != 2 || !args[1].EndsWith(".gba", StringComparison.OrdinalIgnoreCase))
+        if (!(args.Length == 2 || (args.Length == 4 && args[2] == "--bonus-record"))
+            || !args[1].EndsWith(".gba", StringComparison.OrdinalIgnoreCase))
         {
-            Console.Error.WriteLine("Usage: gamecom-gba INPUT.zip|INPUT.tgc|INPUT.bin OUTPUT.gba (Duke graphics preview)");
+            Console.Error.WriteLine("Usage: gamecom-gba INPUT.zip|INPUT.tgc|INPUT.bin OUTPUT.gba [--bonus-record DUKE_RECORD.bin]");
             return 2;
         }
         string temporary = null;
@@ -35,10 +36,16 @@ internal static class Program
             var path = Path.GetFullPath(args[1]);
             if (String.Equals(path, Path.GetFullPath(args[0]), StringComparison.OrdinalIgnoreCase))
                 throw new IOException("Input and output must be different files.");
+            int bonusFlags=0;
+            if (args.Length==4) {
+                if (String.Equals(path,Path.GetFullPath(args[3]),StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("Bonus record and output must be different files.");
+                bonusFlags=Duke.ReadBonusFlags(cart,args[3]);
+            }
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             using (var file = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write))
-                WritePreview(cart, file);
+                WritePreview(cart, file, bonusFlags);
             if (File.Exists(path)) File.Replace(temporary, path, null);
             else File.Move(temporary, path);
             Console.WriteLine("Duke graphics preview: " + path);

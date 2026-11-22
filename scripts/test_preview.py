@@ -192,6 +192,22 @@ def main():
         assert expected == output.read_bytes()
         unrelated.unlink()
         assert sorted(p.name for p in work.iterdir()) == ["output.gba", "renamed.bin"]
+        # First 24 bytes come from the cartridge's system record initializer.
+        record=bytearray(data[0x21*8192+0xf18:0x21*8192+0xf30])+bytearray([255])*19
+        bonus_file=work/"duke-record.bin"
+        record[0x15:0x18]=bytes((250,7,1))
+        bonus_file.write_bytes(record)
+        convert_bonus=[exe,args.cartridge.resolve(),output,"--bonus-record",bonus_file]
+        subprocess.run(convert_bonus,cwd=work,check=True)
+        extended=output.read_bytes()
+        nvram=bytearray(8192)
+        nvram[0x1c63:0x1c63+43]=record
+        bonus_file.write_bytes(nvram)
+        subprocess.run(convert_bonus,cwd=work,check=True)
+        assert extended==output.read_bytes() and extended!=expected
+        record[0x17]^=1
+        bonus_file.write_bytes(record)
+        assert subprocess.run(convert_bonus,cwd=work).returncode==1 and output.read_bytes()==extended
         if args.reference:
             raw.write_bytes(data)
             bios = []
@@ -212,6 +228,23 @@ def main():
                 tape.append(f"{wait} ff ff ff -1 0")
                 if i < len(actions):
                     tape.append("8 " + actions[i])
+            snapshot=work/"title.nv"
+            original=[args.reference,*bios,raw]
+            subprocess.run(original,input="\n".join(tape[:3]).encode(),capture_output=True,check=True,
+                           env=dict(os.environ,GAMECOM_SAVE_NVRAM=str(snapshot)))
+            system=bytearray(snapshot.read_bytes())
+            start=system.index(record[:12])
+            assert system[start:start+21]==record[:21] and system[start+21:start+24]==bytes(3)
+            for flags,register in [(4,0x81),(2,0x41),(1,0x09),(7,0xc9)]:
+                system[start+21:start+24]=bytes((250,flags,(250+flags)&255))
+                snapshot.write_bytes(system)
+                result=subprocess.run(original,input="\n".join(tape).encode(),capture_output=True,check=True,
+                                      env=dict(os.environ,GAMECOM_LOAD_NVRAM=str(snapshot),
+                                               GAMECOM_LOAD_NVRAM_FRAME="3608",GAMECOM_TRACE_STATE="1"))
+                state=next(row for row in result.stderr.splitlines() if row.startswith(b"d0:"))
+                assert int(state.split()[12],16)==register, state
+            subprocess.run([exe,raw,output,"--bonus-record",snapshot],check=True,cwd=work)
+            assert output.read_bytes()==extended
             for key, port in [(None,None),(4,"fe"),(6,"fb"),(7,"f7"),("held","f7"),
                               ("door",None),("open",None),("entered",None)]:
                 duration = 135 if key == "held" else 12
@@ -364,6 +397,24 @@ def main():
     returned=render(core,expected,start=True,walk=campaign_walk,final_frame=resume,stage_cards=cards)
     assert returned[:150*240]==level[:150*240], "campaign wraparound spawn"
     print("mGBA crossed all 12 normal stage exits and returned to Hollywood Holocaust.")
+    extra_routes={
+        5:"L2 F9 B F15 B F L4 F14 L B F R5 F8 B F39 B F7 B F7 B F R4 F6 R B F20 B F L10 F14 B2 F R4 F5 B",
+        10:"F7 B F L2 F6 B F19 B F10 B F L11 F8 B F5 B F L3 F4 L B",
+        0:"F16 B F R7 F9 B F22 B F7 L3 F3 B",
+    }
+    campaign_walk=finish.copy()
+    cards={}
+    resume=2010
+    for next_stage,commands in routes:
+        end=press_steps(campaign_walk,resume,commands)
+        if next_stage in extra_routes:
+            cards[end+470]=(next_stage-1)%15
+            end=press_steps(campaign_walk,end+590,extra_routes[next_stage])
+        cards[end+470]=next_stage
+        resume=end+590
+    returned=render(core,extended,start=True,walk=campaign_walk,final_frame=resume,stage_cards=cards)
+    assert returned[:150*240]==level[:150*240], "extended campaign wraparound spawn"
+    print("mGBA crossed all 15 stage exits with the three bonus flags enabled.")
     wall=[]
     frame=press_steps(wall,85,"R9 F4")
     at_wall=render(core,expected,start=True,walk=wall)
@@ -389,6 +440,15 @@ def main():
         for i,char in enumerate(f"{number:3d}"):
             wanted="00000" if char==" " else glyphs[int(char)]
             assert hud_glyph(image,x+8*i)==list(map(int,wanted)), (x,number,i)
+    paused=[(85,87,3)]
+    item_code=paused+[(95,97,8),(105,107,10),(115,117,0),(125,127,10),(135,155,2)]
+    check_counter(render(core,expected,start=True,walk=item_code),61,0)
+    check_counter(render(core,expected,start=True,walk=item_code+[(161,163,2)]),61,100)
+    key_code=[(a+540,b+540,key) for a,b,key in item_code+[(161,163,2),(173,175,3)]]
+    beyond=at_lock(direct+key_code,2)
+    assert beyond[:136*240]==at_lock(detour,2)[:136*240], "pause code key did not open the exit"
+    weapon_code=paused+[(95,97,11),(105,107,8),(115,117,0),(125,127,8),(135,137,0),(145,147,0)]
+    check_counter(render(core,expected,start=True,walk=weapon_code),169,200)
     armored=[]
     press_steps(armored,85,"R2 F4")
     hit=render(core,expected,start=True,walk=armored,final_frame=345)
