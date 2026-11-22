@@ -1,0 +1,7 @@
+<language_definitions>
+  <language processor="SM8500" endian="big" size="16" variant="cart" version="1.0"
+      slafile="sm8500.sla" processorspec="sm8500.pspec" id="SM8500:BE:16:cart">
+    <description>SM8500 cartridge research (partial instruction coverage)</description>
+    <compiler name="default" spec="sm8500.cspec" id="default"/>
+  </language>
+</language_definitions>

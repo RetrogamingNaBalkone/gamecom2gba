@@ -1,0 +1,51 @@
+# Logical CPU view. Register-file addresses refer to the currently selected bank.
+# Control flow models the 16-bit stack mode. Unknown instructions end decoding.
+define endian=big;
+define alignment=1;
+define space ram type=ram_space size=2 default;
+define space register type=register_space size=1;
+define register offset=0 size=2 [ PC SP ];
+define register offset=4 size=1 [ cf zero sign overflow ];
+define token byteop(8) op=(0,7) group=(3,7) rx=(0,2);
+define token arg(8) imm=(0,7) addr=(0,7) mode=(6,7) dst=(3,5) src=(0,2);
+define token dest(16) target=(0,15);
+cell: addr is addr { export *:1 addr; }
+lowreg: rx is rx { export *:1 rx; }
+branch: target is target { export *:1 target; }
+dstbyte: dst is dst { export *:1 dst; }
+srcpair: "rr"^a is src [ a = ((src & 1) << 3) + (src & 6); ] { export *:2 a; }
+dstpair: "rr"^a is dst [ a = ((dst & 1) << 3) + (dst & 6); ] { export *:2 a; }
+
+:MOV dstbyte,"@"srcpair is op=0x38; mode=0 & dstbyte & srcpair {
+    dstbyte = *:1 srcpair;
+}
+:MOV dstbyte,"@"srcpair"+" is op=0x38; mode=1 & dstbyte & srcpair {
+    local ptr:2 = srcpair;
+    srcpair = ptr + 1;
+    dstbyte = *:1 ptr;
+}
+:MOVW dstpair,srcpair is op=0x3c; mode=0 & dstpair & srcpair { dstpair = srcpair; }
+
+:CMP cell,imm is op=0x50; imm; cell {
+    local diff:1 = cell - imm;
+    cf = cell < imm;
+    zero = diff == 0;
+    sign = diff s< 0;
+    overflow = sborrow(cell, imm);
+}
+:JZ branch is op=0x96; branch { if (zero) goto branch; }
+:JNZ branch is op=0x9e; branch { if (!zero) goto branch; }
+:JMP branch is op=0x98; branch { goto branch; }
+:MOV cell,imm is op=0x58; imm; cell { cell = imm; }
+:MOV lowreg,imm is group=0x18 & lowreg; imm { lowreg = imm; }
+:CALL branch is op=0x49; branch {
+    SP = SP - 2;
+    *:2 SP = inst_next;
+    call branch;
+}
+:RET is op=0xf8 {
+    local ret:2 = *:2 SP;
+    SP = SP + 2;
+    return [ret];
+}
+:NOP is op=0xff { }

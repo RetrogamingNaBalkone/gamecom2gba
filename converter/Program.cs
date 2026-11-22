@@ -1,0 +1,50 @@
+using System;
+using System.IO;
+using System.Reflection;
+
+internal static class Program
+{
+    static void WritePreview(byte[] cart, Stream destination)
+    {
+        using (Stream runtime = Assembly.GetExecutingAssembly().GetManifestResourceStream("runtime"))
+            runtime.CopyTo(destination);
+        var screen = new byte[160, 240];
+        for (int y = 0; y < 160; y++)
+            for (int x = 0; x < 200; x++)
+                screen[y, x+20] = Tiles.Pixel(cart, 0x25, x, y);
+        Bezel.Draw(screen);
+        using (var output = new BinaryWriter(destination))
+        {
+            Tiles.Palette(output, 0, 0xdfff8f, 0x6f8f4f, 0x0f4f2f, 0, 0xb3b4af, 0x292a2a);
+            Tiles.Write(output, screen);
+            Duke.WriteOpening(cart, output);
+        }
+    }
+
+    static int Main(string[] args)
+    {
+        if (args.Length != 2 || !args[1].EndsWith(".gba", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.Error.WriteLine("Usage: gamecom-gba INPUT.zip|INPUT.tgc|INPUT.bin OUTPUT.gba (Duke graphics preview)");
+            return 2;
+        }
+        string temporary = null;
+        try
+        {
+            var cart = Cartridge.Open(args[0]);
+            var path = Path.GetFullPath(args[1]);
+            if (String.Equals(path, Path.GetFullPath(args[0]), StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Input and output must be different files.");
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            using (var file = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write))
+                WritePreview(cart, file);
+            if (File.Exists(path)) File.Replace(temporary, path, null);
+            else File.Move(temporary, path);
+            Console.WriteLine("Duke graphics preview: " + path);
+            return 0;
+        }
+        catch (Exception e) { Console.Error.WriteLine(e.Message); return 1; }
+        finally { if (temporary != null && File.Exists(temporary)) File.Delete(temporary); }
+    }
+}
