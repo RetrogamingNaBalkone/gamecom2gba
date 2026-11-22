@@ -41,6 +41,8 @@ int main(int argc, char **argv) {
         gcsystem_load_cart(&machine, argv[3])) return 1;
     gcsystem_reset(&machine);
     const char *trace = getenv("GAMECOM_TRACE_FRAME");
+    const char *walk = getenv("GAMECOM_TRACE_WALK");
+    int walk_start = walk ? atoi(walk) : -1;
     int frames, col, row, read;
     unsigned in0, in1, in2;
     while ((read = scanf("%d%x%x%x%d%d", &frames, &in0, &in1, &in2, &col, &row)) == 6) {
@@ -53,7 +55,12 @@ int main(int argc, char **argv) {
             if (trace && frame_number == atoi(trace)) machine.cpu.wr = trace_write;
             if (trace && frame_number == atoi(trace) && getenv("GAMECOM_TRACE_READS"))
                 machine.cpu.rd = trace_read;
+            unsigned old_lane = machine.bus.ram[0xc4], old_depth = machine.bus.ram[0xc6];
             gcsystem_run_frame(&machine);
+            if (walk_start >= 0 && frame_number >= walk_start &&
+                (old_lane != machine.bus.ram[0xc4] || old_depth != machine.bus.ram[0xc6]))
+                fprintf(stderr, "walk %d %u %u\n", frame_number,
+                    machine.bus.ram[0xc4], machine.bus.ram[0xc6]);
             frame_number++;
             if (machine.cpu.trapped) return 1;
         }

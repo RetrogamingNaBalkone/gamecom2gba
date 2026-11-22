@@ -50,6 +50,18 @@ internal static class Duke
         // light ink into otherwise transparent pixels on the original LCD.
         foreach (int descriptor in new[] {0x86c2,0x86b3,0x869f,0x86a4,0x86ae,0x86b8})
             WriteWeapon(cart, output, descriptor);
+        long rooms=output.BaseStream.Position;
+        int first=Pointer(cart,0x27,0x8000);
+        int count=(Pointer(cart,0x27,0x8002)-first)/2;
+        output.Write(count);
+        for (int i=0; i<count; i++) output.Write(0);
+        for (int i=0; i<count; i++) {
+            long position=output.BaseStream.Position;
+            output.BaseStream.Position=rooms+4*(i+1);
+            output.Write((uint)(position-rooms));
+            output.BaseStream.Position=position;
+            new Street(cart,i).Write(output);
+        }
     }
 
     static void WriteWeapon(byte[] cart, BinaryWriter output, int descriptor)

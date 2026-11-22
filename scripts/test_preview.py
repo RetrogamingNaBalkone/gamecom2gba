@@ -17,7 +17,7 @@ class GameInfo(c.Structure):
                 ("size", c.c_size_t), ("meta", c.c_char_p)]
 
 
-def render(core_path, rom, start=False, firing=False):
+def render(core_path, rom, start=False, firing=False, walk=()):
     core = c.CDLL(str(core_path))
     frames = []
     pixel_format = 0
@@ -60,14 +60,28 @@ def render(core_path, rom, start=False, firing=False):
         assert core.retro_load_game(c.byref(info))
         try:
             shot_frames = []
-            for frame in range(360 if firing else 120):
+            held_walk = walk == [(85,220,7)]
+            walk_frames = []
+            previous_view = None
+            last_input=max((end for _,end,_ in walk), default=0)
+            for frame in range(max(360 if firing else 120, last_input+15)):
                 if start and frame == 60:
                     keys.add(3)
                 if frame == 62:
                     keys.clear()
+                for pressed, released, button in walk:
+                    if frame == pressed:
+                        keys.add(button)
+                    if frame == released:
+                        keys.discard(button)
                 if firing and frame == 120:
                     keys.add(8)
                 core.retro_run()
+                if held_walk and frame >= 84:
+                    view = frames[0]
+                    if previous_view is not None and view != previous_view:
+                        walk_frames.append(frame)
+                    previous_view = view
                 if firing and frame >= 119:
                     step = 4 if pixel_format == 1 else 2
                     # The muzzle rises above the idle sprite at y=83..95.
@@ -86,6 +100,11 @@ def render(core_path, rom, start=False, firing=False):
                 assert all(16 <= n <= 17 for n in intervals[:5]), intervals
                 assert 77 <= intervals[5] <= 79, intervals
                 print("mGBA shot intervals (display frames):", intervals)
+            if held_walk:
+                assert len(walk_frames) == 9, walk_frames
+                intervals = [b-a for a,b in zip(walk_frames,walk_frames[1:])]
+                assert all(14 <= step <= 15 for step in intervals), intervals
+                print("mGBA lateral step intervals (display frames):", intervals)
         finally:
             core.retro_unload_game()
     finally:
@@ -112,7 +131,7 @@ def main():
     with zipfile.ZipFile(args.cartridge) as archive:
         data = archive.read(next(i for i in archive.infolist() if i.file_size == 2097152))
     exe = ROOT / "dist/gamecom-gba.exe"
-    reference_frame = None
+    reference_frames = {}
     with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
         work = Path(tmp)
         output = work / "output.gba"
@@ -154,9 +173,20 @@ def main():
                 tape.append(f"{wait} ff ff ff -1 0")
                 if i < len(actions):
                     tape.append("8 " + actions[i])
-            result = subprocess.run([args.reference, *bios, raw], cwd=work, check=True,
-                                    input="\n".join(tape).encode(), stdout=subprocess.PIPE)
-            reference_frame = result.stdout
+            for key, port in [(None,None),(4,"fe"),(6,"fb"),(7,"f7"),("held","f7"),
+                              ("door",None),("open",None),("entered",None)]:
+                duration = 135 if key == "held" else 12
+                moves = [] if port is None else ["7 ff ff ff -1 0",f"{duration} {port} ff ff -1 0","7 ff ff ff -1 0"]
+                if key in ("door","open","entered"):
+                    moves=["7 ff ff ff -1 0","87 f7 ff ff -1 0","12 ff ff ff -1 0",
+                           "140 fe ff ff -1 0","12 ff ff ff -1 0"]
+                    if key!="door":
+                        moves+=["16 fe ff fd -1 0","80 ff ff ff -1 0"]
+                    if key=="entered":
+                        moves+=["18 fe ff ff -1 0","12 ff ff ff -1 0"]
+                result = subprocess.run([args.reference, *bios, raw], cwd=work, check=True,
+                                        input="\n".join(tape+moves).encode(), stdout=subprocess.PIPE)
+                reference_frames[key] = result.stdout
     pixels = render(core, expected)
     assert len(pixels) == 240*160
     colors = [(27,31,17), (13,17,9), (1,9,5), (0,0,0)]
@@ -168,18 +198,42 @@ def main():
         side = {pixels[y*240+x] for y in range(160) for x in range(x0, x0+20)}
         assert side == {(22,22,21), (5,5,5)}
     level = render(core, expected, start=True)
+    # From lane 2 to lane 8, then to the front wall. A closed door blocks Up.
+    approach = [(85,164,7), (185,300,4)]
+    closed = render(core, expected, start=True, walk=approach)
+    blocked = render(core, expected, start=True, walk=approach+[(322,330,4)])
+    opened = render(core, expected, start=True, walk=approach+[(319,321,0)])
+    entered = render(core, expected, start=True, walk=approach+[(319,321,0),(322,330,4)])
+    assert closed == blocked and opened != closed and entered != opened, "first door activation and entry"
     render(core, expected, start=True, firing=True)
     assert level != pixels
     for y in range(160):
         assert level[y*240:y*240+20] == pixels[y*240:y*240+20]
         assert level[y*240+220:y*240+240] == pixels[y*240+220:y*240+240]
-    if reference_frame:
+    for button, reference_frame in reference_frames.items():
+        current = level
+        if button=="door":
+            current=closed
+        elif button=="open":
+            current=opened
+        elif button=="entered":
+            current=entered
+        elif button is not None:
+            motion = [(85,220,7)] if button == "held" else [(85,97,button)]
+            current = render(core, expected, start=True, walk=motion)
         magic, size, maximum, image = reference_frame.split(b"\n", 3)
         assert (magic, size, maximum, len(image)) == (b"P5", b"200 160", b"255", 32000)
         shades = {0:colors[3], 63:colors[2], 126:colors[1], 252:colors[0]}
         for y in range(150):
             for x in range(200):
-                assert level[y*240+x+20] == shades[image[y*200+x]], (x,y)
+                # Three moving actors overlap the forward view at this sample.
+                # Compare the world and weapon outside their native DMA bounds.
+                if button == 4 and 22 <= y < 81 and (26 <= x < 81 or 89 <= x < 131):
+                    continue
+                # On entering room 1 the original overlays page 4a at the left edge.
+                if button == "entered" and x < 31 and 22 <= y < 80:
+                    continue
+                assert current[y*240+x+20] == shades[image[y*200+x]], (button,x,y)
     print("ZIP/raw identity, rejection, output preservation and both mGBA screens passed.")
 
 
