@@ -50,9 +50,7 @@ internal static class Intermission
         Tiles.Write(output,scene);
         for (int y=0; y<160; y++) for (int x=0; x<200; x++) scene[y,x+20]=Tiles.Pixel(cart,0x24,x,y);
         Text(scene,"TOTAL FRAGS",80,1,1);
-        Text(scene,"0",96,1,1);
         Text(scene,"FRAGS",112,1,1);
-        Text(scene,"0",128,1,1);
         Tiles.Write(output,scene);
         for (int y=0; y<160; y++) for (int x=20; x<220; x++) scene[y,x]=4;
         Text(scene,"ENTERING",32,2,1);

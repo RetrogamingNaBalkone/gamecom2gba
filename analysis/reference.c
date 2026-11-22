@@ -25,6 +25,9 @@ static uint8_t trace_read(void *context, uint16_t address) {
 
 static void trace_write(void *context, uint16_t address, uint8_t value) {
     const uint8_t *r = machine.bus.ram;
+    if (machine.cpu.pc==0x70c2 && r[0x27]==0x22 && getenv("GAMECOM_TRACE_ACTORS"))
+        fprintf(stderr,"spawn %d %04x room=%02x lane=%d depth=%d rng=%02x%02x last=%02x\n",
+                frame_number,address,value,r[0xe2],r[0xe1],r[0xd2],r[0xd3],r[0xd1]);
     if (address == 0x34 && (value & 0x80)) {
         fprintf(stderr, "%d blit %02x bank=%02x src=%d,%d size=%d,%d dst=%d,%d pal=%02x\n",
             frame_number, value, r[0x3c], r[0x36], r[0x35], r[0x38]+1, r[0x37]+1,
@@ -66,6 +69,13 @@ int main(int argc, char **argv) {
         }
     }
     if (read != EOF) return 2;
+    if (getenv("GAMECOM_TRACE_ACTORS")) {
+        for (int p=0x224; p<0x2fc && machine.bus.ram[p]!=0xff; p+=12) {
+            fprintf(stderr,"actor %d",(p-0x224)/12);
+            for (int i=0; i<12; i++) fprintf(stderr," %02x",machine.bus.ram[p+i]);
+            fputc('\n',stderr);
+        }
+    }
     if (getenv("GAMECOM_TRACE_ITEMS")) {
         fprintf(stderr,"inventory room=%u lane=%u depth=%u key=%u medkit=%u items=",
             machine.bus.ram[0xc2],machine.bus.ram[0xc4],machine.bus.ram[0xc6],

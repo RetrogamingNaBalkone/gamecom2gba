@@ -85,6 +85,7 @@ internal sealed class Street
 
     bool Scenery(byte[,] scene, int lane, int depth, int distance)
     {
+        bool drew=false;
         int set=Read(0x27,room+16);
         if ((set&0xf0)!=0) return false;
         int columns = Word(sceneryBank,sceneryLevel+2*set);
@@ -103,12 +104,43 @@ internal sealed class Street
                 int x=Read(sceneryBank,record+2), flags=Read(sceneryBank,record+4);
                 if ((flags & 1)!=0) x-=256;
                 int descriptor=Word(sceneryBank,record);
-                if (scene!=null) Object(scene,descriptor,x,Read(sceneryBank,record+3),(flags & 2)!=0);
+                if (scene!=null) {
+                    Object(scene,descriptor,x,Read(sceneryBank,record+3),(flags & 2)!=0);
+                    drew=true;
+                }
                 else if (x<150 && (x>=50 || x+Read(0x26,descriptor)>=60)) return true;
             }
             break;
         }
-        return false;
+        return drew;
+    }
+
+    void WriteOcclusion(BinaryWriter output,int lane,int depth)
+    {
+        long start=output.BaseStream.Position;
+        output.Write(0);
+        int count=0;
+        for (int distance=1;distance<4;distance++) {
+            var ink=new byte[160,240];
+            if (!Scenery(ink,lane,depth,distance)) continue;
+            for (int y=0;y<136;y+=8)
+                for (int x=0;x<200;x+=8) {
+                    ulong mask=0;
+                    for (int dy=0;dy<8;dy++)
+                        for (int dx=0;dx<8;dx++)
+                            if (ink[y+dy,20+x+dx]!=0) mask|=1UL<<(8*dy+dx);
+                    if (mask==0) continue;
+                    output.Write((byte)x);
+                    output.Write((byte)y);
+                    output.Write((ushort)distance);
+                    output.Write(mask);
+                    count++;
+                }
+        }
+        long end=output.BaseStream.Position;
+        output.BaseStream.Position=start;
+        output.Write(count);
+        output.BaseStream.Position=end;
     }
 
     bool Blocked(int lane,int depth)
@@ -120,6 +152,48 @@ internal sealed class Street
             if (Read(0x23,p+2)==lane && Read(0x23,p+3)==((depth-1)&255)) return true;
         }
         return !overrideRoom && Scenery(null,lane,depth-1,1);
+    }
+
+    void WriteActors(BinaryWriter output)
+    {
+        int set=Read(0x27,room+16);
+        int episode=(stageId>>4)-1, stage=(stageId&15)-1;
+        int list=Word(0x29,Word(0x29,0x8000+2*episode)+2*stage);
+        int choices=stageId==0x11 ? 2 : stageId==0x12 ? 3 : 4;
+        var spawns=new List<int>();
+        int rng=0xa59b;
+        if ((set&0xf0)==0) {
+            for (int p=list; Read(0x29,p)!=255; p+=3) {
+                if (Read(0x29,p)==set)
+                    spawns.Add(Spawn(Read(0x29,p+1),Read(0x29,p+2),rng%choices));
+                rng=NextSeed(rng);
+            }
+        } else {
+            for (int z=3;z<Length;z+=5) {
+                int type=spawns.Count==0 ? (set&3)%choices : rng%choices;
+                spawns.Add(Spawn(1,z,type));
+                rng=NextSeed(rng);
+            }
+        }
+        if (spawns.Count>18) throw new InvalidDataException("Actor list exceeds the room limit");
+        output.Write(spawns.Count);
+        foreach (int spawn in spawns) output.Write(spawn);
+    }
+
+    int Spawn(int lane,int depth,int type)
+    {
+        int worldX=Word(0x22,0x79ed+2*lane)+(lane==1 ? 80 : 10);
+        return worldX|(depth<<16)|(type<<24);
+    }
+
+    // 20:50D0, seeded at the first Hollywood Holocaust spawn of the reference run.
+    static int NextSeed(int seed)
+    {
+        int hi=seed>>8,lo=seed&255;
+        int rotated=(hi<<1)&255;
+        int sum=lo+rotated+(hi>>7);
+        sum=(sum&255)+0x90+(sum>>8);
+        return (((rotated+(sum&255)+(sum>>8))&255)<<8)|(sum&255);
     }
 
     void WriteItems(BinaryWriter output, int lane, int depth)
@@ -282,6 +356,7 @@ internal sealed class Street
             output.Write((byte)Read(0x22,p+3));
             output.Write((byte)Read(0x22,p+4));
         }
+        WriteActors(output);
         long table=output.BaseStream.Position;
         for (int i=0; i<Width*Length; i++) output.Write(0);
         var views=new Dictionary<string,uint>();
@@ -302,6 +377,7 @@ internal sealed class Street
         using (var writer=new BinaryWriter(buffer)) {
             WriteView(writer,View(x,z,opened));
             WriteItems(writer,x,z);
+            WriteOcclusion(writer,x,z);
             byte[] bytes=buffer.ToArray();
             string key=Convert.ToBase64String(bytes);
             uint offset;

@@ -1,4 +1,5 @@
-param([Parameter(Mandatory)][string]$Cartridge, [string]$GhidraHome = $env:GHIDRA_HOME)
+param([Parameter(Mandatory)][string]$Cartridge, [string]$GhidraHome = $env:GHIDRA_HOME,
+      [ValidateSet('Startup','Actors')][string]$View='Startup')
 $ErrorActionPreference = 'Stop'
 if (!$GhidraHome) { $GhidraHome = "$env:LOCALAPPDATA/Programs/Ghidra/ghidra_12.1.2_PUBLIC" }
 $root = Split-Path $PSScriptRoot
@@ -27,17 +28,19 @@ try {
     if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne $expected) { throw 'Unknown ROM' }
     $cart = [IO.File]::ReadAllBytes($source)
     $banks = [byte[]]::new(3 * 8192)
-    $pages = @(0x20,0x21,0x26)
+    $project="Duke$View"
+    $scriptName=if ($View -eq 'Actors') { 'DukeActors.java' } else { 'DukeEntry.java' }
+    $pages=if ($View -eq 'Actors') { @(0x20,0x22,0x26) } else { @(0x20,0x21,0x26) }
     for ($i=0; $i -lt $pages.Count; $i++) {
         [Array]::Copy($cart, $pages[$i] * 8192, $banks, $i * 8192, 8192)
     }
-    $binary = "$stage/DukeStartup.bin"
+    $binary = "$stage/$project.bin"
     [IO.File]::WriteAllBytes($binary,$banks)
     $headless = "$GhidraHome/support/analyzeHeadless.bat"
-    if (Test-Path "$projects/DukeStartup.gpr") {
-        & $headless $projects DukeStartup -process DukeStartup.bin -noanalysis -scriptPath "$PSScriptRoot/ghidra" -postScript DukeEntry.java
+    if (Test-Path "$projects/$project.gpr") {
+        & $headless $projects $project -process "$project.bin" -noanalysis -scriptPath "$PSScriptRoot/ghidra" -postScript $scriptName
     } else {
-        & $headless $projects DukeStartup -import $binary -processor SM8500:BE:16:cart -loader BinaryLoader -loader-baseAddr 4000 -noanalysis -scriptPath "$PSScriptRoot/ghidra" -postScript DukeEntry.java
+        & $headless $projects $project -import $binary -processor SM8500:BE:16:cart -loader BinaryLoader -loader-baseAddr 4000 -noanalysis -scriptPath "$PSScriptRoot/ghidra" -postScript $scriptName
     }
     if ($LASTEXITCODE) { throw "Ghidra returned $LASTEXITCODE" }
 } finally {

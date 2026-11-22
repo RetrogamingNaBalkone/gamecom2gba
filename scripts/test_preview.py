@@ -227,6 +227,13 @@ def main():
                 result = subprocess.run([args.reference, *bios, raw], cwd=work, check=True,
                                         input="\n".join(tape+moves).encode(), stdout=subprocess.PIPE)
                 reference_frames[key] = result.stdout
+            shot = ["7 ff", "12 fe", "7 ff", "18 7f", "2 ff"]
+            for steps, state in [(shot[:3], "28 00 07"), (shot, "21 14 03")]:
+                rows = [step + " ff ff -1 0" for step in steps]
+                result = subprocess.run([args.reference, *bios, raw], cwd=work, check=True,
+                                        input="\n".join(tape + rows).encode(), capture_output=True,
+                                        env=dict(os.environ, GAMECOM_TRACE_ACTORS="1"))
+                assert ("actor 0 00 02 05 " + state).encode() in result.stderr, result.stderr[-2000:]
             def verify_items(start, steps, state):
                 rows=[" ".join((step.split()+["ff","ff"])[:4])+ " -1 0" for step in steps]
                 run=subprocess.run([args.reference,*bios,raw],cwd=work,check=True,
@@ -283,6 +290,21 @@ def main():
     finish=enter_corridor+[(1010,1060,4),(1090,1094,0),(1110,1240,4),
                            (1270,1380,6),(1410,1414,0)]
     next_level=render(core,expected,start=True,walk=finish,final_frame=2000)
+    # Three street enemies enter pistol range on the first step. Exhaust the
+    # group, return to the starting cell, then read both intermission counters.
+    fight=[(85,97,4),(110,375,8),(405,412,5)]
+    after_fight=fight+[(a+400,b+400,key) for a,b,key in finish]
+    score=render(core,expected,start=True,walk=after_fight,final_frame=2160)
+    no_kills=render(core,expected,start=True,walk=finish,final_frame=1760)
+    for y in (96,128):
+        changed=False
+        for row,bits in enumerate((7,1,7,1,7)):
+            for col in range(3):
+                pos=240*(y+row)+124+col
+                if bits&(4>>col):
+                    assert score[pos]==colors[0], ("frag tally",y,row,col)
+                changed|=score[pos]!=no_kills[pos]
+        assert changed, "frag count remained zero"
     # Ordinary campaign route. Each row ends at an exit; the value is the
     # index of the title expected next, including the original wraparound.
     routes=[
@@ -347,10 +369,6 @@ def main():
         shades = {0:colors[3], 63:colors[2], 126:colors[1], 252:colors[0]}
         for y in range(150):
             for x in range(200):
-                # Three moving actors overlap the forward view at this sample.
-                # Compare the world and weapon outside their native DMA bounds.
-                if button == 4 and 22 <= y < 81 and (26 <= x < 81 or 89 <= x < 131):
-                    continue
                 # On entering room 1 the original overlays page 4a at the left edge.
                 if button == "entered" and x < 31 and 22 <= y < 80:
                     continue

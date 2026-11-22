@@ -54,7 +54,8 @@ internal static class Duke
         const int levels=15;
         output.Write(levels);
         for (int level=0; level<levels; level++) output.Write(0);
-        output.Write(4*(levels+4));
+        output.Write(4*(levels+5));
+        output.Write(0);
         output.Write(0);
         output.Write(0);
         var backgrounds=new TileAtlas();
@@ -64,6 +65,8 @@ internal static class Duke
             WriteOffset(output,campaign,level);
             WriteRooms(cart,output,level,backgrounds,sprites);
         }
+        WriteOffset(output,campaign,levels+3);
+        new Actors(cart,sprites).Write(output);
         WriteOffset(output,campaign,levels+1);
         backgrounds.Write(output);
         WriteOffset(output,campaign,levels+2);
