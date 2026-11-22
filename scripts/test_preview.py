@@ -321,16 +321,35 @@ def campaign_offset(rom):
     return rom.index(raw)+32+2*19200
 
 
+def card_tiles(rom,card):
+    campaign=campaign_offset(rom)
+    def word(pos):
+        return struct.unpack_from("<I",rom,pos)[0]
+    levels=word(campaign)
+    cards=campaign+word(campaign+4*(levels+1))
+    bank=campaign+word(campaign+4*(levels+2))
+    records=bank+word(bank)
+    layout=records+word(cards+4*card)
+    tiles=bytearray()
+    for row in struct.unpack_from("<20I",rom,layout):
+        for strip in struct.unpack_from("<10I",rom,records+row):
+            for tile in struct.unpack_from("<3I",rom,records+strip):
+                if tile&1:
+                    tiles.extend(rom[records+tile-1:records+tile+31])
+                else:
+                    for line in struct.unpack_from("<8H",rom,records+tile):
+                        start=bank+4+4*line
+                        tiles.extend(rom[start:start+4])
+    return tiles
+
+
 def check_stage_card(pixels,rom,entering_stage):
     palette=[(0,0,0),(27,31,17),(13,17,9),(1,9,5),(0,0,0),(22,22,21),(5,5,5)]
-    campaign=campaign_offset(rom)
-    levels,=struct.unpack_from("<I",rom,campaign)
-    cards,=struct.unpack_from("<I",rom,campaign+4*(levels+1))
-    title=campaign+cards+(entering_stage*3+2)*19200
+    title=card_tiles(rom,entering_stage*3+2)
     for y in range(160):
         for x in range(240):
-            pos=title+32*(30*(y//8)+x//8)+4*(y%8)+(x%8)//2
-            color=(rom[pos]>>(4*(x%2)))&15
+            pos=32*(30*(y//8)+x//8)+4*(y%8)+(x%8)//2
+            color=(title[pos]>>(4*(x%2)))&15
             assert pixels[240*y+x]==palette[color], (entering_stage,x,y)
 
 
@@ -362,6 +381,11 @@ def main():
                 expected = output.read_bytes()
             else:
                 assert expected == output.read_bytes()
+        # Compare every card with the lossless, pre-optimization graphics.
+        cards=hashlib.sha256()
+        for card in range(46):
+            cards.update(card_tiles(expected,card))
+        assert cards.hexdigest()=="d5f8dbeaa0540716f8e7321543166be41b48f925fced064e1e4ee46f51ce35ca"
         raw.write_bytes(data[:-1] + bytes([data[-1] ^ 1]))
         assert subprocess.run([exe, raw, output], cwd=work).returncode == 1
         assert expected == output.read_bytes()

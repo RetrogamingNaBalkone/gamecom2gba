@@ -47,25 +47,25 @@ internal static class Intermission
         }
     }
 
-    internal static void Write(byte[] cart,BinaryWriter output,int level)
+    internal static void Write(byte[] cart,BinaryWriter output,BackgroundAtlas backgrounds,int level)
     {
         var scene=new byte[160,240];
         Bezel.Draw(scene);
         for (int y=0; y<160; y++) for (int x=20; x<220; x++) scene[y,x]=4;
         Text(scene,"COMPLETED",32,2,1);
         Name(cart,scene,level);
-        Tiles.Write(output,scene);
+        output.Write(backgrounds.AddLayer(scene,160));
         for (int y=0; y<160; y++) for (int x=0; x<200; x++) scene[y,x+20]=Tiles.Pixel(cart,0x24,x,y);
         Text(scene,"TOTAL FRAGS",80,1,1);
         Text(scene,"FRAGS",112,1,1);
-        Tiles.Write(output,scene);
+        output.Write(backgrounds.AddLayer(scene,160));
         for (int y=0; y<160; y++) for (int x=20; x<220; x++) scene[y,x]=4;
         Text(scene,"ENTERING",32,2,1);
         Name(cart,scene,level);
-        Tiles.Write(output,scene);
+        output.Write(backgrounds.AddLayer(scene,160));
     }
 
-    internal static void WriteRetry(byte[] cart,BinaryWriter output)
+    internal static void WriteRetry(byte[] cart,BinaryWriter output,BackgroundAtlas backgrounds)
     {
         var scene=new byte[160,240];
         Bezel.Draw(scene);
@@ -73,6 +73,6 @@ internal static class Intermission
             for (int x=0;x<200;x++) scene[y,x+20]=Tiles.Pixel(cart,0x24,x,y);
         Text(scene,"AHH THEY GOT YOU",64,1,1);
         Text(scene,"A  RESTART SAME LEVEL",96,1,1);
-        Tiles.Write(output,scene);
+        output.Write(backgrounds.AddLayer(scene,160));
     }
 }

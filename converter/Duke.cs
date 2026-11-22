@@ -80,20 +80,20 @@ internal static class Duke
         output.Write(0);
         output.Write(bonusFlags);
         output.Write(0);
-        var backgrounds=new TileAtlas();
+        var backgrounds=new BackgroundAtlas();
         var sprites=new TileAtlas();
-        for (int level=0; level<levels; level++) Intermission.Write(cart,output,level);
-        Intermission.WriteRetry(cart,output);
+        for (int level=0; level<levels; level++) Intermission.Write(cart,output,backgrounds,level);
+        Intermission.WriteRetry(cart,output,backgrounds);
         for (int level=0; level<levels; level++) {
             WriteOffset(output,campaign,level);
             WriteRooms(cart,output,level,backgrounds,sprites);
         }
         WriteOffset(output,campaign,levels+3);
         new Actors(cart,sprites).Write(output);
+        WriteOffset(output,campaign,levels+2);
+        sprites.WriteSprites(output,backgrounds);
         WriteOffset(output,campaign,levels+1);
         backgrounds.Write(output);
-        WriteOffset(output,campaign,levels+2);
-        sprites.Write(output);
         WriteOffset(output,campaign,levels+5);
         WriteWeapons(cart,output);
     }
@@ -106,7 +106,7 @@ internal static class Duke
         output.BaseStream.Position=position;
     }
 
-    static void WriteRooms(byte[] cart,BinaryWriter output,int level,TileAtlas backgrounds,TileAtlas sprites)
+    static void WriteRooms(byte[] cart,BinaryWriter output,int level,BackgroundAtlas backgrounds,TileAtlas sprites)
     {
         long rooms=output.BaseStream.Position;
         int entry=0x8000+2*level;

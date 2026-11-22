@@ -39,6 +39,66 @@ struct ViewObjects {
     const uint32_t *bounds;
 };
 
+/* BG0 holds walls and the HUD. BG1 holds doors; BG2 holds scenery.
+   The latter two start at character 96 of their character blocks to
+   leave the preceding layer's last tiles intact. */
+static const uint32_t *previous_layout[3] __attribute__((section(".ewram")));
+
+static void reset_backgrounds(void) {
+    for (unsigned i=0;i<3;i++) previous_layout[i]=0;
+    REG16(0x04000008)=0x1f02;
+    REG16(0x0400000a)=0x1e05;
+    REG16(0x0400000c)=0x1d08;
+    for (unsigned layer=1;layer<=2;layer++) {
+        volatile uint16_t *map=(volatile uint16_t *)(0x0600f800-0x800*layer);
+        for (unsigned y=0;y<17;y++)
+            for (unsigned x=0;x<30;x++) map[32*y+x]=96+30*y+x;
+    }
+}
+
+static const uint8_t *bg_records(const uint8_t *atlas) {
+    return atlas+*(const uint32_t *)atlas;
+}
+
+static void decode_tile(const uint8_t *records,const uint32_t *lines,unsigned tile,uintptr_t dest) {
+    if (tile&1) {
+        copy_words(records+tile-1,dest,8);
+        return;
+    }
+    volatile uint32_t *vram=(volatile uint32_t *)dest;
+    const uint16_t *codes=(const uint16_t *)(records+tile);
+    for (unsigned y=0;y<8;y++) vram[y]=lines[codes[y]];
+}
+
+static void load_sprite(const struct Atlas *atlas,unsigned image,unsigned tile) {
+    const uint32_t *tiles=(const uint32_t *)atlas->sprites+16*image;
+    const uint8_t *records=bg_records(atlas->backgrounds);
+    const uint32_t *lines=(const uint32_t *)atlas->backgrounds+1;
+    for (unsigned i=0;i<16;i++)
+        decode_tile(records,lines,tiles[i],0x06010000+32*(tile+i));
+}
+
+static void update_layer(const uint8_t *bank,unsigned layer,unsigned offset,unsigned height) {
+    const uint8_t *atlas=bg_records(bank);
+    const uint32_t *lines=(const uint32_t *)bank+1;
+    const uint32_t *next=(const uint32_t *)(atlas+offset);
+    const uint32_t *old=previous_layout[layer];
+    if (next==old) return;
+    uintptr_t dest=0x06000000+layer*0x4000+(layer ? 96*32 : 0);
+    for (unsigned y=0;y<height;y++,dest+=960) {
+        if (old && old[y]==next[y]) continue;
+        const uint32_t *row=(const uint32_t *)(atlas+next[y]);
+        const uint32_t *prior=old ? (const uint32_t *)(atlas+old[y]) : 0;
+        for (unsigned x=0;x<10;x++) {
+            if (prior && prior[x]==row[x]) continue;
+            const uint32_t *strip=(const uint32_t *)(atlas+row[x]);
+            for (unsigned t=0;t<3;t++)
+                decode_tile(atlas,lines,strip[t],dest+96*x+32*t);
+        }
+    }
+    previous_layout[layer]=next;
+}
+
 static struct ViewObjects show_view(const struct Atlas *atlas, const uint8_t *room, unsigned lane, unsigned depth,
                       unsigned open_doors, uint32_t taken) {
     unsigned offset=view_entry(room,lane,depth)&0x7fffffff;
@@ -48,15 +108,9 @@ static struct ViewObjects show_view(const struct Atlas *atlas, const uint8_t *ro
                 offset=((const uint32_t *)(room+20))[i];
     }
     const uint32_t *view=(const uint32_t *)(room+offset);
-    unsigned map_words=17*32/2;
-    const uint32_t *tiles=view+1+map_words;
-    for (unsigned i=0; i<*view; ) {
-        unsigned start=i++;
-        while (i<*view && tiles[i]==tiles[i-1]+1) i++;
-        copy_words(atlas->backgrounds+32*tiles[start],0x06000000+32*start,8*(i-start));
-    }
-    copy_words(view+1,0x0600f800,map_words);
-    const uint32_t *objects=tiles+*view;
+    for (unsigned layer=0;layer<3;layer++) update_layer(atlas->backgrounds,layer,view[layer],17);
+    const uint32_t *objects=(const uint32_t *)(bg_records(atlas->backgrounds)+view[3]);
+    const uint32_t *masks=(const uint32_t *)(bg_records(atlas->backgrounds)+view[4]);
     unsigned count=*objects++;
     volatile uint16_t *oam=(volatile uint16_t *)0x07000200;
     unsigned slot=0;
@@ -64,13 +118,13 @@ static struct ViewObjects show_view(const struct Atlas *atlas, const uint8_t *ro
         const uint8_t *sprite=(const uint8_t *)objects;
         if (taken & (1u<<sprite[0])) continue;
         unsigned tile=384+16*slot++;
-        copy_words(atlas->sprites+512*objects[1],0x06010000+32*tile,128);
+        load_sprite(atlas,objects[1],tile);
         oam[0]=sprite[2];
         oam[1]=0x8000|sprite[1];
         oam[2]=tile;
         oam+=4;
     }
-    struct ViewObjects result={slot,objects,objects+1+3*objects[0]};
+    struct ViewObjects result={slot,masks,masks+1+3*masks[0]};
     for (; slot<40; slot++,oam+=4) oam[0]=0x200;
     return result;
 }
@@ -237,7 +291,7 @@ static void draw_enemies(const struct Atlas *atlas,const struct Encounter *enc,u
                     int px=left+(flip ? width-u-32 : u), py=top+y;
                     if (px>=200 || px+32<=0 || py>=136 || py+32<=0 || slot>=40) continue;
                     unsigned tile=384+16*slot++;
-                    copy_words(atlas->sprites+512*image,0x06010000+32*tile,128);
+                    load_sprite(atlas,image,tile);
                     clip_piece(enc->view.occlusion,distance,px,py,flip,tile);
                     oam[0]=py&255;
                     oam[1]=0x8000|(flip ? 0x1000 : 0)|((px+20)&511);
@@ -333,8 +387,7 @@ static int street_clear(const struct Atlas *atlas,const struct Encounter *enc,co
     const uint32_t *bounds=enc->view.bounds;
     if (e->sight!=lane && e->sight && e->sight<=room[0]) {
         const uint32_t *v=(const uint32_t *)(room+(view_entry(room,e->sight,depth)&0x7fffffff));
-        const uint32_t *items=v+1+17*16+*v;
-        const uint32_t *masks=items+1+2*items[0];
+        const uint32_t *masks=(const uint32_t *)(bg_records(atlas->backgrounds)+v[4]);
         bounds=masks+1+3*masks[0];
     }
     const uint8_t *box=(const uint8_t *)(bounds+1);
@@ -790,6 +843,7 @@ void play(void) {
     const uint8_t *campaign=assets + 32 + 2*19200;
     const uint32_t *levels=(const uint32_t *)campaign;
     const uint8_t *weapons=campaign+levels[6+levels[0]];
+    const uint32_t *cards=(const uint32_t *)(campaign+levels[1+levels[0]]);
     unsigned last_weapon_frame=~0u,last_kind=~0u;
     struct Atlas atlas={campaign+levels[2+levels[0]],campaign+levels[3+levels[0]],campaign+levels[4+levels[0]]};
     position.level=0;
@@ -814,12 +868,13 @@ void play(void) {
     position.depth=0;
     unsigned walk_delay=0;
     enter_encounter(&encounter,room,damage[0],drops[0]);
+    reset_backgrounds();
     encounter.view=show_view(&atlas,room,position.lane,position.depth,0,taken[0]);
     REG16(0x04000040)=(20<<8)|220;
     REG16(0x04000044)=136;
-    REG16(0x04000048)=0x11;
+    REG16(0x04000048)=0x17;
     REG16(0x0400004a)=1;
-    REG16(0x04000000)=0x3140;
+    REG16(0x04000000)=0x3740;
     draw_enemies(&atlas,&encounter,position.lane,position.depth);
     REG16(0x0400010a) = 0x83;
     unsigned previous = REG16(0x04000108);
@@ -849,7 +904,8 @@ void play(void) {
                 death_time+=dt;
                 if (death_time>=menu_at) {
                     REG16(0x04000000)=0x0100;
-                    full_scene(campaign+levels[1+levels[0]]+19200*3*levels[0]);
+                    previous_layout[0]=0;
+                    update_layer(atlas.backgrounds,0,cards[3*levels[0]],20);
                 }
                 continue;
             }
@@ -872,7 +928,8 @@ void play(void) {
                 if (screen!=exit_screen) {
                     REG16(0x04000000)=0x0100;
                     unsigned card_level=screen==3 ? next_level : position.level;
-                    full_scene(campaign+levels[1+levels[0]]+19200*(3*card_level+screen-1));
+                    previous_layout[0]=0;
+                    update_layer(atlas.backgrounds,0,cards[3*card_level+screen-1],20);
                     if (screen==2) {
                         score_number(96,total_frags);
                         score_number(128,frags);
@@ -898,12 +955,13 @@ void play(void) {
             exit_active=0;
             entering=1;
             full_scene(assets+32+19200);
+            reset_backgrounds();
             enter_encounter(&encounter,room,damage[0],drops[0]);
             encounter.view=show_view(&atlas,room,position.lane,position.depth,0,0);
             draw_enemies(&atlas,&encounter,position.lane,position.depth);
             last_health=last_armor=last_ammo=last_key=255;
             last_kind=~0u;
-            REG16(0x04000000)=0x3140;
+            REG16(0x04000000)=0x3740;
             continue;
         }
         if (pressed & START) { paused=!paused; pause_count=0; }
@@ -1027,11 +1085,11 @@ void play(void) {
                     enter_encounter(&encounter,room,damage[position.room_id],drops[position.room_id]);
                 }
                 if (position.lane!=x || position.depth!=z || old_room!=room) {
+                    position.lane=x;
+                    position.depth=z;
                     taken[position.room_id]=collect(room,x,z,taken[position.room_id],&inventory,&w);
                     encounter.view=show_view(&atlas,room,x,z,open_doors,taken[position.room_id]);
                     changed=1;
-                    position.lane=x;
-                    position.depth=z;
                 }
                 unsigned overdue=walk_delay ? dt-walk_delay : 0;
                 unsigned step=position.room_id==1 ? LOBBY_STEP : STREET_STEP;

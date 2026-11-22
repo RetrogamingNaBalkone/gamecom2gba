@@ -12,8 +12,9 @@ internal sealed class Street
     readonly int sceneryLevel;
     readonly int sceneryBank;
     readonly int stageId;
-    readonly TileAtlas backgrounds, sprites;
-    internal Street(byte[] rom, int level, int number, TileAtlas backgrounds, TileAtlas sprites)
+    readonly BackgroundAtlas backgrounds;
+    readonly TileAtlas sprites;
+    internal Street(byte[] rom, int level, int number, BackgroundAtlas backgrounds, TileAtlas sprites)
     {
         cart = rom;
         this.backgrounds=backgrounds;
@@ -298,47 +299,26 @@ internal sealed class Street
         }
     }
 
-    byte[,] View(int lane, int depth, bool opened=false)
+    void WriteLayers(BinaryWriter writer,int lane,int depth,bool opened)
     {
-        var scene = new byte[160,240];
-        Bezel.Draw(scene);
-        Walls(scene,lane,depth,5);
-        if (Length-depth < 5) Walls(scene,lane,depth,Length-depth);
-        Doors(scene,lane,Length-depth,opened);
-        for (int distance=4; distance>0; distance--) {
-            Scenery(scene,lane,depth,distance);
-        }
-        return scene;
-    }
+        var walls=new byte[160,240];
+        Bezel.Draw(walls);
+        Walls(walls,lane,depth,5);
+        if (Length-depth<5) Walls(walls,lane,depth,Length-depth);
+        writer.Write(backgrounds.AddLayer(walls));
 
-    // Emit a hardware tile map plus its dictionary. Identical character data
-    // occupies one VRAM slot, leaving the HUD tiles above slot 509 untouched.
-    void WriteView(BinaryWriter output, byte[,] scene)
-    {
-        var ids = new Dictionary<int,ushort>();
-        var references=new List<int>();
-            var map = new ushort[17*32];
-            for (int ty=0; ty<17; ty++)
-                for (int tx=0; tx<30; tx++)
-                {
-                    var tile = new byte[32];
-                    for (int y=0; y<8; y++)
-                        for (int x=0; x<8; x+=2) {
-                            int row=8*ty+y, col=8*tx+x;
-                            tile[y*4+x/2]=(byte)(scene[row,col] | scene[row,col+1]<<4);
-                        }
-                    int key=backgrounds.Add(tile);
-                    ushort id;
-                    if (!ids.TryGetValue(key,out id)) {
-                        id=(ushort)ids.Count;
-                        ids.Add(key,id);
-                        references.Add(key);
-                    }
-                    map[ty*32+tx]=id;
-                }
-            output.Write(references.Count);
-            foreach (ushort id in map) output.Write(id);
-            foreach (int reference in references) output.Write(reference);
+        int doors=backgrounds.Empty;
+        if (Length-depth<=3) {
+            var layer=new byte[136,240];
+            Doors(layer,lane,Length-depth,opened);
+            doors=backgrounds.AddLayer(layer);
+        }
+        writer.Write(doors);
+        var scenery=new byte[136,240];
+        bool visible=false;
+        for (int distance=4;distance>0;distance--)
+            visible|=Scenery(scenery,lane,depth,distance);
+        writer.Write(visible ? backgrounds.AddLayer(scenery) : backgrounds.Empty);
     }
 
     internal void Write(BinaryWriter output)
@@ -386,9 +366,15 @@ internal sealed class Street
     {
         using (var buffer=new MemoryStream())
         using (var writer=new BinaryWriter(buffer)) {
-            WriteView(writer,View(x,z,opened));
-            WriteItems(writer,x,z);
-            WriteOcclusion(writer,x,z);
+            WriteLayers(writer,x,z,opened);
+            using (var parts=new MemoryStream())
+            using (var records=new BinaryWriter(parts)) {
+                WriteItems(records,x,z);
+                writer.Write(backgrounds.Add(parts.ToArray()));
+                parts.SetLength(0);
+                WriteOcclusion(records,x,z);
+                writer.Write(backgrounds.Add(parts.ToArray()));
+            }
             byte[] bytes=buffer.ToArray();
             string key=Convert.ToBase64String(bytes);
             uint offset;
