@@ -23,6 +23,19 @@ static uint8_t trace_read(void *context, uint16_t address) {
     return value;
 }
 
+static void combat_write(void *context, uint16_t address, uint8_t value) {
+    const uint8_t *r = machine.bus.ram;
+    if (address==0x208 && r[0x27]==0x22 && machine.cpu.pc==0x6c04) {
+        unsigned actor=(unsigned)r[0xe4]*256+r[0xe5];
+        if (actor>=0x224 && actor<0x2fc)
+            fprintf(stderr,"attack frame=%d actor=%04x type=%u x=%u depth=%u health=%u armor=%u\n",
+                frame_number,actor,r[actor+3]>>5,r[actor+10]*256+r[actor+11],r[actor+2],
+                100*r[0x20a]+10*r[0x209]+value,
+                100*r[0x21e]+10*r[0x21d]+r[0x21c]);
+    }
+    gcbus_write(context,address,value);
+}
+
 static void trace_write(void *context, uint16_t address, uint8_t value) {
     const uint8_t *r = machine.bus.ram;
     if (machine.cpu.pc==0x70c2 && r[0x27]==0x22 && getenv("GAMECOM_TRACE_ACTORS"))
@@ -33,7 +46,7 @@ static void trace_write(void *context, uint16_t address, uint8_t value) {
             frame_number, value, r[0x3c], r[0x36], r[0x35], r[0x38]+1, r[0x37]+1,
             r[0x3a], r[0x39], r[0x3b]);
     }
-    gcbus_write(context, address, value);
+    combat_write(context, address, value);
 }
 
 int main(int argc, char **argv) {
@@ -46,6 +59,10 @@ int main(int argc, char **argv) {
     const char *trace = getenv("GAMECOM_TRACE_FRAME");
     const char *walk = getenv("GAMECOM_TRACE_WALK");
     int walk_start = walk ? atoi(walk) : -1;
+    const char *combat = getenv("GAMECOM_TRACE_COMBAT");
+    int combat_start = combat ? atoi(combat) : -1;
+    const char *motion = getenv("GAMECOM_TRACE_ACTOR_MOTION");
+    int motion_start = motion ? atoi(motion) : -1;
     int frames, col, row, read;
     unsigned in0, in1, in2;
     while ((read = scanf("%d%x%x%x%d%d", &frames, &in0, &in1, &in2, &col, &row)) == 6) {
@@ -55,11 +72,21 @@ int main(int argc, char **argv) {
         for (int c = 0; c < 13; c++)
             gcbus_set_touch(&machine.bus, c, c == col ? 1u << row : 0);
         for (int f = 0; f < frames; f++) {
+            if (frame_number == combat_start && machine.cpu.wr != trace_write)
+                machine.cpu.wr = combat_write;
             if (trace && frame_number == atoi(trace)) machine.cpu.wr = trace_write;
             if (trace && frame_number == atoi(trace) && getenv("GAMECOM_TRACE_READS"))
                 machine.cpu.rd = trace_read;
             unsigned old_lane = machine.bus.ram[0xc4], old_depth = machine.bus.ram[0xc6];
             gcsystem_run_frame(&machine);
+            if (motion_start>=0 && frame_number>=motion_start) {
+                for (unsigned p=0x224;p<0x2fc && machine.bus.ram[p]!=0xff;p+=12) {
+                    const uint8_t *actor=machine.bus.ram+p;
+                    if (actor[0]!=machine.bus.ram[0xc2]) continue;
+                    fprintf(stderr,"motion %d %u %u %u %u %u %u\n",frame_number,(p-0x224)/12,
+                            actor[3]&31,actor[4],actor[10]*256+actor[11],actor[2],actor[8]);
+                }
+            }
             if (walk_start >= 0 && frame_number >= walk_start &&
                 (old_lane != machine.bus.ram[0xc4] || old_depth != machine.bus.ram[0xc6]))
                 fprintf(stderr, "walk %d %u %u\n", frame_number,
@@ -77,7 +104,7 @@ int main(int argc, char **argv) {
         }
     }
     if (getenv("GAMECOM_TRACE_ITEMS")) {
-        fprintf(stderr,"inventory room=%u lane=%u depth=%u key=%u medkit=%u items=",
+        fprintf(stderr,"inventory room=%u lane=%u depth=%u key=%u armor=%u items=",
             machine.bus.ram[0xc2],machine.bus.ram[0xc4],machine.bus.ram[0xc6],
             !!(machine.bus.ram[0xdb]&0x20),machine.bus.ram[0x21e]);
         for (int p=0x300; p<0x364 && machine.bus.ram[p]!=0xff; p+=5)

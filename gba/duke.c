@@ -207,7 +207,7 @@ struct Weapon {
 };
 
 struct Inventory {
-    unsigned key, medkit, health, shells, rockets, weapons;
+    unsigned key, armor, health, shells, rockets, weapons;
 };
 
 static unsigned capped(unsigned value,unsigned limit) {
@@ -225,7 +225,7 @@ static uint32_t collect(const uint8_t *room, unsigned lane, unsigned depth, uint
         if (x<=20 || x>=180) continue;
         switch (item[3]) {
             case 1: if (inv->key) continue; inv->key=1; break;
-            case 2: if (inv->medkit==100) continue; inv->medkit=100; break;
+            case 2: if (inv->armor==100) continue; inv->armor=100; break;
             case 3: if (inv->health==100) continue; inv->health=capped(inv->health+30,100); break;
             case 4: case 5:
                 if (!(item[3]==4 && !(inv->weapons&4)) && inv->rockets==50) continue;
@@ -304,10 +304,20 @@ static void digit(unsigned x, unsigned value) {
             unsigned tile = (y/8)*30 + px/8;
             unsigned index = tile*16 + (y%8)*2 + (px%8)/4;
             unsigned shift = (px%4)*4;
-            unsigned ink = (digits[value][row] & (4u>>col)) ? 1 : 4;
+            unsigned ink = value<10 && (digits[value][row] & (4u>>col)) ? 1 : 4;
             tiles[index] = (tiles[index] & ~(15u << shift)) | (ink << shift);
         }
     }
+}
+
+static void hud_number(unsigned x,unsigned value,unsigned *previous) {
+    if (*previous==value) return;
+    *previous=value;
+    unsigned tens=(value*205u)>>11;
+    unsigned hundreds=(tens*205u)>>11;
+    digit(x,hundreds ? hundreds : 10);
+    digit(x+8,tens ? tens-10*hundreds : 10);
+    digit(x+16,value-10*tens);
 }
 
 static void reset_rooms(unsigned count,uint32_t *taken,uint8_t *unlocked,uint8_t damage[][18]) {
@@ -353,7 +363,7 @@ void play(void) {
     REG16(0x0400010a) = 0x83;
     unsigned previous = REG16(0x04000108);
     unsigned old_keys = START | A;
-    unsigned displayed = 255;
+    unsigned last_health=255,last_armor=255,last_ammo=255;
     int paused = 0;
     int entering = 1;
     for (;;) {
@@ -404,7 +414,7 @@ void play(void) {
             enter_encounter(&encounter,room,damage[0]);
             encounter.view=show_view(&atlas,room,lane,depth,0,0);
             draw_enemies(&atlas,&encounter,lane,depth);
-            displayed=255;
+            last_health=last_armor=last_ammo=255;
             REG16(0x04000000)=0x3140;
             continue;
         }
@@ -525,15 +535,8 @@ void play(void) {
         unsigned pose = w.age < FLASH ? w.pose : 0;
         if (w.pose >= 2 && w.age >= FLASH && w.age < SHOT) pose = w.pose+1;
         REG16(0x07000004) = pose*64;
-        if (displayed != w.remaining) {
-            /* Exact for the byte-sized ammunition counter on ARM7TDMI. */
-            unsigned tens = (w.remaining * 205u) >> 11;
-            unsigned ones = w.remaining - 10*tens;
-            unsigned hundreds=(tens*205u)>>11;
-            digit(20+149, hundreds);
-            digit(20+157, tens-10*hundreds);
-            digit(20+165, ones);
-            displayed = w.remaining;
-        }
+        hud_number(20+13,inventory.health,&last_health);
+        hud_number(20+41,inventory.armor,&last_armor);
+        hud_number(20+149,w.remaining,&last_ammo);
     }
 }

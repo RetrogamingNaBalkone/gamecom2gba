@@ -242,11 +242,35 @@ def main():
                 assert state.encode() in run.stderr, run.stderr.decode()
                 return run.stdout
             verify_items(tape,["38 f7","12 ff","50 fe","12 ff"],
-                         "room=0 lane=4 depth=3 key=0 medkit=1 items=100000")
+                         "room=0 lane=4 depth=3 key=0 armor=1 items=100000")
+            for steps, expected_hits in [
+                (["7 ff","12 fe","1200 ff"], [
+                    (4731,1,91,0),(4781,0,81,0),(4861,1,72,0),(4911,0,62,0),
+                    (4991,1,53,0),(5041,0,43,0),(5121,1,34,0),(5171,0,24,0),
+                    (5251,1,15,0),(5301,0,5,0),(5380,1,0,0)]),
+                (["38 f7","12 ff","50 fe","190 ff"], [
+                    (4455,1,95,96),(4555,1,90,92)])]:
+                rows=[step+" ff ff -1 0" for step in steps]
+                trace=dict(os.environ,GAMECOM_TRACE_COMBAT="4266")
+                if len(expected_hits)==11:
+                    trace["GAMECOM_TRACE_ACTOR_MOTION"]="4266"
+                run=subprocess.run([args.reference,*bios,raw],cwd=work,check=True,
+                                   input="\n".join(tape+rows).encode(),capture_output=True,
+                                   env=trace)
+                hits=[]
+                for line in run.stderr.decode().splitlines():
+                    if line.startswith("attack "):
+                        fields=dict(pair.split("=") for pair in line.split()[1:])
+                        hits.append(tuple(int(fields[key]) for key in ("frame","type","health","armor")))
+                assert hits==expected_hits, hits
+                if "GAMECOM_TRACE_ACTOR_MOTION" in trace:
+                    for snapshot in ["motion 4345 2 3 2 138 4 0", "motion 4448 2 7 34 98 4 0",
+                                     "motion 4579 2 10 32 178 4 0", "motion 4731 2 2 22 178 2 1"]:
+                        assert snapshot.encode() in run.stderr, snapshot
             take_key=["80 f7","12 ff","145 fe","12 ff","130 fb","12 ff"]
             unlock=take_key+["128 f7","12 ff","60 fe","12 ff","16 fe ff fd","55 ff"]
-            verify_items(lobby_tape,take_key,"room=1 lane=4 depth=9 key=1 medkit=0 items=010000")
-            verify_items(lobby_tape,unlock,"room=1 lane=12 depth=11 key=0 medkit=0 items=010000")
+            verify_items(lobby_tape,take_key,"room=1 lane=4 depth=9 key=1 armor=0 items=010000")
+            verify_items(lobby_tape,unlock,"room=1 lane=12 depth=11 key=0 armor=0 items=010000")
             reference_frames["corridor"]=verify_items(
                 lobby_tape,unlock+["29 fe ff fd","130 ff","25 fe","132 ff"],
                 "room=5 lane=1 depth=1 key=0")
@@ -337,13 +361,19 @@ def main():
     assert at_wall==render(core,expected,start=True,walk=wall), "street obstacle"
     press_steps(wall,frame,"L F")
     assert at_wall!=render(core,expected,start=True,walk=wall), "route around street obstacle"
-    beside_medkit=[(85,104,7)]
-    before=render(core,expected,start=True,walk=beside_medkit)
+    beside_armor=[(85,104,7)]
+    before=render(core,expected,start=True,walk=beside_armor)
     round_trip=[(130,166,4),(190,226,5)]
-    after=render(core,expected,start=True,walk=beside_medkit+round_trip)
+    after=render(core,expected,start=True,walk=beside_armor+round_trip)
     second_trip=[(start+120,end+120,button) for start,end,button in round_trip]
-    assert before!=after, "medkit still visible after collection"
-    assert after==render(core,expected,start=True,walk=beside_medkit+round_trip+second_trip)
+    assert before[:136*240]!=after[:136*240], "armor still visible after collection"
+    def hud_glyph(frame,x):
+        return [sum((frame[240*y+x+i]==colors[0])<<(2-i) for i in range(3))
+                for y in range(151,156)]
+    assert hud_glyph(before,61)==[0]*5 and hud_glyph(after,61)==[2,6,2,2,7]
+    assert hud_glyph(after,69)==hud_glyph(after,77)==[7,5,5,5,7]
+    assert all(hud_glyph(before,33+dx)==hud_glyph(after,61+dx) for dx in (0,8,16))
+    assert after==render(core,expected,start=True,walk=beside_armor+round_trip+second_trip)
     render(core, expected, start=True, firing=True)
     assert level != pixels
     for y in range(160):

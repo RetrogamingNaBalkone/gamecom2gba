@@ -10,6 +10,9 @@ public class DukeActors extends GhidraScript {
         createLabel(toAddr(0x60d0),"advance_actors",true);
         createLabel(toAddr(0x6767),"draw_actors_at_distance",true);
         createLabel(toAddr(0x69fe),"apply_actor_damage",true);
+        createLabel(toAddr(0x649d),"strike_player",true);
+        createLabel(toAddr(0x6b3e),"split_damage_between_armor_and_health",true);
+        createLabel(toAddr(0x6b94),"subtract_decimal_counter",true);
         createLabel(toAddr(0x6eff),"spawn_level_actors",true);
         createLabel(toAddr(0x70be),"write_actor_record",true);
         createLabel(toAddr(0x70f6),"actor_action_tables",true);
