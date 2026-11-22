@@ -293,16 +293,20 @@ def main():
                 return run.stdout
             verify_items(tape,["38 f7","12 ff","50 fe","12 ff"],
                          "room=0 lane=4 depth=3 key=0 armor=1 items=100000")
-            for steps, expected_hits in [
-                (["7 ff","12 fe","1200 ff"], [
+            for scenario, steps, expected_hits in [
+                ("stand still", ["1400 ff"], [
+                    (4667,1,91,0),(4768,1,82,0),(4868,1,73,0),(4969,1,64,0),
+                    (5070,1,55,0),(5171,1,46,0),(5271,1,37,0),(5372,0,27,0),
+                    (5372,1,18,0),(5473,0,8,0),(5473,1,0,0)]),
+                ("one step forward", ["7 ff","12 fe","1200 ff"], [
                     (4731,1,91,0),(4781,0,81,0),(4861,1,72,0),(4911,0,62,0),
                     (4991,1,53,0),(5041,0,43,0),(5121,1,34,0),(5171,0,24,0),
                     (5251,1,15,0),(5301,0,5,0),(5380,1,0,0)]),
-                (["38 f7","12 ff","50 fe","190 ff"], [
+                ("collect armor", ["38 f7","12 ff","50 fe","190 ff"], [
                     (4455,1,95,96),(4555,1,90,92)])]:
                 rows=[step+" ff ff -1 0" for step in steps]
                 trace=dict(os.environ,GAMECOM_TRACE_COMBAT="4266")
-                if len(expected_hits)==11:
+                if scenario=="one step forward":
                     trace["GAMECOM_TRACE_ACTOR_MOTION"]="4266"
                 run=subprocess.run([args.reference,*bios,raw],cwd=work,check=True,
                                    input="\n".join(tape+rows).encode(),capture_output=True,
@@ -312,7 +316,7 @@ def main():
                     if line.startswith("attack "):
                         fields=dict(pair.split("=") for pair in line.split()[1:])
                         hits.append(tuple(int(fields[key]) for key in ("frame","type","health","armor")))
-                assert hits==expected_hits, hits
+                assert hits==expected_hits, (scenario,hits)
                 if "GAMECOM_TRACE_ACTOR_MOTION" in trace:
                     for snapshot in ["motion 4345 2 3 2 138 4 0", "motion 4448 2 7 34 98 4 0",
                                      "motion 4579 2 10 32 178 4 0", "motion 4731 2 2 22 178 2 1"]:
