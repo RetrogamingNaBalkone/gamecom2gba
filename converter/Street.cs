@@ -8,10 +8,20 @@ internal sealed class Street
 {
     readonly byte[] cart;
     readonly int room;
-    internal Street(byte[] rom, int number)
+    readonly List<int> items=new List<int>();
+    readonly int sceneryLevel;
+    readonly TileAtlas backgrounds, sprites;
+    internal Street(byte[] rom, int level, int number, TileAtlas backgrounds, TileAtlas sprites)
     {
         cart = rom;
-        room = Word(0x27, Word(0x27, 0x8000)+2*number);
+        this.backgrounds=backgrounds;
+        this.sprites=sprites;
+        room = Word(0x27, Word(0x27, 0x8000+2*level)+2*number);
+        sceneryLevel=Word(0x28,Word(0x28,0x8000)+2*level);
+        int list=Word(0x22,Word(0x22,0x77c4)+2*level);
+        for (int p=list; Read(0x22,p)!=255; p+=5)
+            if (Read(0x22,p)==Read(0x27,room+16)) items.Add(p);
+        if (items.Count>32) throw new InvalidDataException("Too many collectible items in room");
     }
 
     int Read(int bank, int address) { return cart[bank * 8192 + (address & 8191)]; }
@@ -70,9 +80,7 @@ internal sealed class Street
 
     void Scenery(byte[,] scene, int lane, int depth, int distance)
     {
-        int episode = Word(0x28,0x8000);
-        int level = Word(0x28,episode);
-        int columns = Word(0x28,level+2*Read(0x27,room+16));
+        int columns = Word(0x28,sceneryLevel+2*Read(0x27,room+16));
         for (int col=columns; Read(0x28,col)!=255; col+=3)
         {
             if (Read(0x28,col) != lane) continue;
@@ -91,12 +99,16 @@ internal sealed class Street
         }
     }
 
-    void Pickups(byte[,] scene, int lane, int depth, int distance)
+    void WriteItems(BinaryWriter output, int lane, int depth)
     {
-        int list=Word(0x22,Word(0x22,0x77c4));
-        for (int p=list; Read(0x22,p)!=255; p+=5)
+        long start=output.BaseStream.Position;
+        int count=0;
+        output.Write(count);
+        for (int distance=1; distance<=4; distance++)
+        for (int index=items.Count-1; index>=0; index--)
         {
-            if (Read(0x22,p)!=Read(0x27,room+16) || Read(0x22,p+1)!=depth+distance) continue;
+            int p=items[index];
+            if (Read(0x22,p+1)!=depth+distance) continue;
             int type=Read(0x22,p+4);
             int poses=Word(0x22,0x7987+2*(type-1));
             int sprite=Word(0x22,poses+2*(distance-1));
@@ -106,8 +118,43 @@ internal sealed class Street
             if (objectLane != lane && objectLane == Width) offset-=22;
             int x=Read(0x22,p+3)+offset;
             int y=Read(0x22,0x6a3b+distance);
-            Object(scene,sprite,x-Read(0x26,sprite)/2,y-Read(0x26,sprite+1),false);
+            int left=x-Read(0x26,sprite)/2, top=y-Read(0x26,sprite+1);
+            int right=Math.Min(200,left+Read(0x26,sprite)), bottom=Math.Min(136,y);
+            left=Math.Max(0,left);
+            top=Math.Max(0,top);
+            if (left>=right || top>=bottom) continue;
+            var ink=new byte[160,240];
+            Object(ink,sprite,x-Read(0x26,sprite)/2,y-Read(0x26,sprite+1),false);
+            var inFront=new byte[160,240];
+            for (int near=distance-1; near>=1; near--) Scenery(inFront,lane,depth,near);
+            for (int sy=top; sy<bottom; sy+=32)
+                for (int sx=left; sx<right; sx+=32) {
+                    var pixels=new byte[32,32];
+                    bool visible=false;
+                    for (int row=sy; row<Math.Min(bottom,sy+32); row++)
+                        for (int col=sx; col<Math.Min(right,sx+32); col++)
+                            if (inFront[row,20+col]==0 && ink[row,20+col]!=0) {
+                                pixels[row-sy,col-sx]=ink[row,20+col];
+                                visible=true;
+                            }
+                    if (!visible) continue;
+                    output.Write((byte)index);
+                    output.Write((byte)(20+sx));
+                    output.Write((byte)sy);
+                    output.Write((byte)0);
+                    using (var buffer=new MemoryStream(512))
+                    using (var image=new BinaryWriter(buffer)) {
+                        Tiles.Write(image,pixels);
+                        output.Write(sprites.Add(buffer.ToArray()));
+                    }
+                    count++;
+                }
         }
+        if (count>40) throw new InvalidDataException("Pickup sprites exceed GBA object VRAM");
+        long end=output.BaseStream.Position;
+        output.BaseStream.Position=start;
+        output.Write(count);
+        output.BaseStream.Position=end;
     }
 
     void Doors(byte[,] scene, int lane, int distance, bool opened)
@@ -152,18 +199,16 @@ internal sealed class Street
         Doors(scene,lane,Length-depth,opened);
         for (int distance=4; distance>0; distance--) {
             Scenery(scene,lane,depth,distance);
-            Pickups(scene,lane,depth,distance);
         }
         return scene;
     }
 
     // Emit a hardware tile map plus its dictionary. Identical character data
     // occupies one VRAM slot, leaving the HUD tiles above slot 509 untouched.
-    static void WriteView(BinaryWriter output, byte[,] scene)
+    void WriteView(BinaryWriter output, byte[,] scene)
     {
-        var ids = new Dictionary<string,ushort>();
-        using (var tiles = new MemoryStream())
-        {
+        var ids = new Dictionary<int,ushort>();
+        var references=new List<int>();
             var map = new ushort[17*32];
             for (int ty=0; ty<17; ty++)
                 for (int tx=0; tx<30; tx++)
@@ -174,19 +219,18 @@ internal sealed class Street
                             int row=8*ty+y, col=8*tx+x;
                             tile[y*4+x/2]=(byte)(scene[row,col] | scene[row,col+1]<<4);
                         }
-                    string key=Convert.ToBase64String(tile);
+                    int key=backgrounds.Add(tile);
                     ushort id;
                     if (!ids.TryGetValue(key,out id)) {
                         id=(ushort)ids.Count;
                         ids.Add(key,id);
-                        tiles.Write(tile,0,32);
+                        references.Add(key);
                     }
                     map[ty*32+tx]=id;
                 }
-            output.Write((uint)tiles.Length);
+            output.Write(references.Count);
             foreach (ushort id in map) output.Write(id);
-            tiles.WriteTo(output.BaseStream);
-        }
+            foreach (int reference in references) output.Write(reference);
     }
 
     internal void Write(BinaryWriter output)
@@ -207,6 +251,13 @@ internal sealed class Street
         output.Write((ushort)0);
         long openTable=output.BaseStream.Position;
         for (int i=0; i<3; i++) output.Write(0);
+        output.Write(items.Count);
+        foreach (int p in items) {
+            output.Write((byte)Read(0x22,p+1));
+            output.Write((byte)Read(0x22,p+2));
+            output.Write((byte)Read(0x22,p+3));
+            output.Write((byte)Read(0x22,p+4));
+        }
         long table=output.BaseStream.Position;
         for (int i=0; i<Width*Length; i++) output.Write(0);
         for (int z=0; z<Length; z++)
@@ -216,6 +267,7 @@ internal sealed class Street
                 output.Write((uint)(view-start));
                 output.BaseStream.Position=view;
                 WriteView(output,View(x,z));
+                WriteItems(output,x,z);
             }
         for (int i=0; i<3; i++) {
             int spec=Read(0x27,room+4+i);
@@ -225,6 +277,7 @@ internal sealed class Street
             output.Write((uint)(view-start));
             output.BaseStream.Position=view;
             WriteView(output,View(spec&31,Length-1,true));
+            WriteItems(output,spec&31,Length-1);
         }
     }
 }

@@ -17,7 +17,7 @@ class GameInfo(c.Structure):
                 ("size", c.c_size_t), ("meta", c.c_char_p)]
 
 
-def render(core_path, rom, start=False, firing=False, walk=()):
+def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0):
     core = c.CDLL(str(core_path))
     frames = []
     pixel_format = 0
@@ -64,7 +64,7 @@ def render(core_path, rom, start=False, firing=False, walk=()):
             walk_frames = []
             previous_view = None
             last_input=max((end for _,end,_ in walk), default=0)
-            for frame in range(max(360 if firing else 120, last_input+15)):
+            for frame in range(max(360 if firing else 120, last_input+15, final_frame+1)):
                 if start and frame == 60:
                     keys.add(3)
                 if frame == 62:
@@ -184,9 +184,31 @@ def main():
                         moves+=["16 fe ff fd -1 0","80 ff ff ff -1 0"]
                     if key=="entered":
                         moves+=["18 fe ff ff -1 0","12 ff ff ff -1 0"]
+                        lobby_tape=tape+moves
                 result = subprocess.run([args.reference, *bios, raw], cwd=work, check=True,
                                         input="\n".join(tape+moves).encode(), stdout=subprocess.PIPE)
                 reference_frames[key] = result.stdout
+            def verify_items(start, steps, state):
+                rows=[" ".join((step.split()+["ff","ff"])[:4])+ " -1 0" for step in steps]
+                run=subprocess.run([args.reference,*bios,raw],cwd=work,check=True,
+                                   input="\n".join(start+rows).encode(),capture_output=True,
+                                   env=dict(os.environ,GAMECOM_TRACE_ITEMS="1"))
+                assert state.encode() in run.stderr, run.stderr.decode()
+                return run.stdout
+            verify_items(tape,["38 f7","12 ff","50 fe","12 ff"],
+                         "room=0 lane=4 depth=3 key=0 medkit=1 items=100000")
+            take_key=["80 f7","12 ff","145 fe","12 ff","130 fb","12 ff"]
+            unlock=take_key+["128 f7","12 ff","60 fe","12 ff","16 fe ff fd","55 ff"]
+            verify_items(lobby_tape,take_key,"room=1 lane=4 depth=9 key=1 medkit=0 items=010000")
+            verify_items(lobby_tape,unlock,"room=1 lane=12 depth=11 key=0 medkit=0 items=010000")
+            reference_frames["corridor"]=verify_items(
+                lobby_tape,unlock+["29 fe ff fd","130 ff","25 fe","132 ff"],
+                "room=5 lane=1 depth=1 key=0")
+            through_corridor=unlock+["29 fe ff fd","130 ff","25 fe","12 ff","120 fe",
+                                      "12 ff","30 fe ff fd","120 ff","24 fe","12 ff"]
+            finish=through_corridor+["130 fe","12 ff","130 fb","12 ff","30 fe ff fd"]
+            reference_frames["next_level"]=verify_items(
+                lobby_tape,finish+["540 ff"],"room=0 lane=4 depth=0 key=0")
     pixels = render(core, expected)
     assert len(pixels) == 240*160
     colors = [(27,31,17), (13,17,9), (1,9,5), (0,0,0)]
@@ -205,6 +227,30 @@ def main():
     opened = render(core, expected, start=True, walk=approach+[(319,321,0)])
     entered = render(core, expected, start=True, walk=approach+[(319,321,0),(322,330,4)])
     assert closed == blocked and opened != closed and entered != opened, "first door activation and entry"
+    lobby=approach+[(319,321,0),(322,330,4)]
+    # The locked exit is in lane 12. Go directly there, then repeat with a
+    # detour through lane 4 to collect the key before approaching the lock.
+    direct=lobby+[(351,418,7),(450,613,4)]
+    detour=lobby+[(351,418,7),(450,582,4),(600,717,6),(730,847,7),(870,890,4)]
+    def at_lock(route, uses):
+        return render(core, expected, start=True, walk=route+[
+            (915+12*i,918+12*i,0) for i in range(uses)]+[(960,968,4)])
+    locked=at_lock(direct,0)
+    assert at_lock(direct,2)==locked, "door opened without a key"
+    assert at_lock(detour,1)==locked, "unlocking should consume the first use"
+    assert at_lock(detour,2)!=locked, "key did not open the locked route"
+    enter_corridor=detour+[(915,918,0),(927,930,0),(960,980,4)]
+    corridor=render(core,expected,start=True,walk=enter_corridor)
+    finish=enter_corridor+[(1010,1060,4),(1090,1094,0),(1110,1240,4),
+                           (1270,1380,6),(1410,1414,0)]
+    next_level=render(core,expected,start=True,walk=finish,final_frame=2000)
+    beside_medkit=[(85,104,7)]
+    before=render(core,expected,start=True,walk=beside_medkit)
+    round_trip=[(130,166,4),(190,226,5)]
+    after=render(core,expected,start=True,walk=beside_medkit+round_trip)
+    second_trip=[(start+120,end+120,button) for start,end,button in round_trip]
+    assert before!=after, "medkit still visible after collection"
+    assert after==render(core,expected,start=True,walk=beside_medkit+round_trip+second_trip)
     render(core, expected, start=True, firing=True)
     assert level != pixels
     for y in range(160):
@@ -218,6 +264,10 @@ def main():
             current=opened
         elif button=="entered":
             current=entered
+        elif button=="corridor":
+            current=corridor
+        elif button=="next_level":
+            current=next_level
         elif button is not None:
             motion = [(85,220,7)] if button == "held" else [(85,97,button)]
             current = render(core, expected, start=True, walk=motion)

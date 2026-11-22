@@ -66,6 +66,14 @@ int main(int argc, char **argv) {
         }
     }
     if (read != EOF) return 2;
+    if (getenv("GAMECOM_TRACE_ITEMS")) {
+        fprintf(stderr,"inventory room=%u lane=%u depth=%u key=%u medkit=%u items=",
+            machine.bus.ram[0xc2],machine.bus.ram[0xc4],machine.bus.ram[0xc6],
+            !!(machine.bus.ram[0xdb]&0x20),machine.bus.ram[0x21e]);
+        for (int p=0x300; p<0x364 && machine.bus.ram[p]!=0xff; p+=5)
+            fputc(machine.bus.ram[p]==0xfe ? '1' : '0',stderr);
+        fputc('\n',stderr);
+    }
     if (getenv("GAMECOM_TRACE_STATE")) {
         for (int offset = 0xb0; offset < 0x100; offset += 16) {
             fprintf(stderr, "%02x:", offset);

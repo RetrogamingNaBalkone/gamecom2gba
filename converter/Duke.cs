@@ -50,17 +50,44 @@ internal static class Duke
         // light ink into otherwise transparent pixels on the original LCD.
         foreach (int descriptor in new[] {0x86c2,0x86b3,0x869f,0x86a4,0x86ae,0x86b8})
             WriteWeapon(cart, output, descriptor);
+        long campaign=output.BaseStream.Position;
+        const int levels=2;
+        output.Write(levels);
+        for (int level=0; level<levels; level++) output.Write(0);
+        output.Write(4*(levels+4));
+        output.Write(0);
+        output.Write(0);
+        var backgrounds=new TileAtlas();
+        var sprites=new TileAtlas();
+        Intermission.Write(cart,output);
+        for (int level=0; level<levels; level++) {
+            WriteOffset(output,campaign,level);
+            WriteRooms(cart,output,level,backgrounds,sprites);
+        }
+        WriteOffset(output,campaign,levels+1);
+        backgrounds.Write(output);
+        WriteOffset(output,campaign,levels+2);
+        sprites.Write(output);
+    }
+
+    static void WriteOffset(BinaryWriter output,long start,int index)
+    {
+        long position=output.BaseStream.Position;
+        output.BaseStream.Position=start+4*(index+1);
+        output.Write((uint)(position-start));
+        output.BaseStream.Position=position;
+    }
+
+    static void WriteRooms(byte[] cart,BinaryWriter output,int level,TileAtlas backgrounds,TileAtlas sprites)
+    {
         long rooms=output.BaseStream.Position;
-        int first=Pointer(cart,0x27,0x8000);
-        int count=(Pointer(cart,0x27,0x8002)-first)/2;
+        int entry=0x8000+2*level;
+        int count=(Pointer(cart,0x27,entry+2)-Pointer(cart,0x27,entry))/2;
         output.Write(count);
         for (int i=0; i<count; i++) output.Write(0);
         for (int i=0; i<count; i++) {
-            long position=output.BaseStream.Position;
-            output.BaseStream.Position=rooms+4*(i+1);
-            output.Write((uint)(position-rooms));
-            output.BaseStream.Position=position;
-            new Street(cart,i).Write(output);
+            WriteOffset(output,rooms,i);
+            new Street(cart,level,i,backgrounds,sprites).Write(output);
         }
     }
 
