@@ -61,6 +61,7 @@ internal static class Duke
         var backgrounds=new TileAtlas();
         var sprites=new TileAtlas();
         for (int level=0; level<levels; level++) Intermission.Write(cart,output,level);
+        Intermission.WriteRetry(cart,output);
         for (int level=0; level<levels; level++) {
             WriteOffset(output,campaign,level);
             WriteRooms(cart,output,level,backgrounds,sprites);

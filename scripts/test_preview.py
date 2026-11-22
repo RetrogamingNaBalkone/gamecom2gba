@@ -271,6 +271,16 @@ def main():
             unlock=take_key+["128 f7","12 ff","60 fe","12 ff","16 fe ff fd","55 ff"]
             verify_items(lobby_tape,take_key,"room=1 lane=4 depth=9 key=1 armor=0 items=010000")
             verify_items(lobby_tape,unlock,"room=1 lane=12 depth=11 key=0 armor=0 items=010000")
+            west=unlock+["235 fb","12 ff","19 fe ff fd","85 ff","18 fe","180 ff"]
+            rows=[" ".join((step.split()+["ff","ff"])[:4])+" -1 0" for step in west]
+            run=subprocess.run([args.reference,*bios,raw],cwd=work,check=True,
+                               input="\n".join(lobby_tape+rows).encode(),capture_output=True,
+                               env=dict(os.environ,GAMECOM_TRACE_COMBAT="5675",
+                                        GAMECOM_TRACE_ACTOR_MOTION="5675"))
+            for event in ["motion 5675 0 7 0 108 3 0","motion 5728 0 3 0 108 2 0",
+                          "attack frame=5749 actor=0224 type=0 x=108 depth=2 health=90",
+                          "attack frame=5850 actor=0224 type=0 x=108 depth=2 health=80"]:
+                assert event.encode() in run.stderr, event
             reference_frames["corridor"]=verify_items(
                 lobby_tape,unlock+["29 fe ff fd","130 ff","25 fe","132 ff"],
                 "room=5 lane=1 depth=1 key=0")
@@ -373,6 +383,28 @@ def main():
     assert hud_glyph(before,61)==[0]*5 and hud_glyph(after,61)==[2,6,2,2,7]
     assert hud_glyph(after,69)==hud_glyph(after,77)==[7,5,5,5,7]
     assert all(hud_glyph(before,33+dx)==hud_glyph(after,61+dx) for dx in (0,8,16))
+    def check_counter(image,x,number):
+        glyphs=["75557","26227","71747","71717","55711","74717",
+                "74757","71111","75757","75717"]
+        for i,char in enumerate(f"{number:3d}"):
+            wanted="00000" if char==" " else glyphs[int(char)]
+            assert hud_glyph(image,x+8*i)==list(map(int,wanted)), (x,number,i)
+    armored=[]
+    press_steps(armored,85,"R2 F4")
+    hit=render(core,expected,start=True,walk=armored,final_frame=345)
+    check_counter(hit,33,95)
+    check_counter(hit,61,96)
+    west=detour+[(915,918,0),(940,1124,6),(1150,1154,0),(1170,1188,4)]
+    for frame,health in [(1200,100),(1260,90),(1360,80)]:
+        check_counter(render(core,expected,start=True,walk=west,final_frame=frame),33,health)
+    contact=[]
+    press_steps(contact,85,"F4")
+    fatal=render(core,expected,start=True,walk=contact,final_frame=650)
+    check_counter(fatal,33,0)
+    retry=render(core,expected,start=True,walk=contact,final_frame=1160)
+    assert retry!=fatal and retry!=level
+    renewed=render(core,expected,start=True,walk=contact+[(1170,1172,8)],final_frame=1200)
+    assert renewed==level, "retry after death must reset the room, player and weapon"
     assert after==render(core,expected,start=True,walk=beside_armor+round_trip+second_trip)
     render(core, expected, start=True, firing=True)
     assert level != pixels

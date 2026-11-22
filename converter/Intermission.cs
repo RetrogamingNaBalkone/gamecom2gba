@@ -57,4 +57,15 @@ internal static class Intermission
         Name(cart,scene,level);
         Tiles.Write(output,scene);
     }
+
+    internal static void WriteRetry(byte[] cart,BinaryWriter output)
+    {
+        var scene=new byte[160,240];
+        Bezel.Draw(scene);
+        for (int y=0;y<160;y++)
+            for (int x=0;x<200;x++) scene[y,x+20]=Tiles.Pixel(cart,0x24,x,y);
+        Text(scene,"AHH THEY GOT YOU",64,1,1);
+        Text(scene,"A  RESTART SAME LEVEL",96,1,1);
+        Tiles.Write(output,scene);
+    }
 }

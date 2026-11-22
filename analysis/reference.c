@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
             if (motion_start>=0 && frame_number>=motion_start) {
                 for (unsigned p=0x224;p<0x2fc && machine.bus.ram[p]!=0xff;p+=12) {
                     const uint8_t *actor=machine.bus.ram+p;
-                    if (actor[0]!=machine.bus.ram[0xc2]) continue;
+                    if (actor[0]!=machine.bus.ram[0xd8]) continue;
                     fprintf(stderr,"motion %d %u %u %u %u %u %u\n",frame_number,(p-0x224)/12,
                             actor[3]&31,actor[4],actor[10]*256+actor[11],actor[2],actor[8]);
                 }

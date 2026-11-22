@@ -77,7 +77,7 @@ static struct ViewObjects show_view(const struct Atlas *atlas, const uint8_t *ro
 struct Enemy {
     unsigned short x;
     uint8_t z,type,health,action,phase;
-    unsigned reaction;
+    unsigned reaction,attack_time,walk_time;
 };
 
 struct Encounter {
@@ -100,6 +100,8 @@ static void enter_encounter(struct Encounter *enc,const uint8_t *room,const uint
         e->action=8;
         e->phase=0;
         e->reaction=0;
+        e->attack_time=0;
+        e->walk_time=0;
     }
 }
 
@@ -142,6 +144,8 @@ static int fire_at(struct Encounter *enc,unsigned lane,unsigned depth,unsigned p
             e->action=1;
             e->phase=1;
             e->reaction=SHOT;
+            e->attack_time=0;
+            e->walk_time=0;
             return e->health ? 1 : 2;
         }
     return 0;
@@ -209,6 +213,78 @@ struct Weapon {
 struct Inventory {
     unsigned key, armor, health, shells, rockets, weapons;
 };
+
+static int corridor_step_clear(const struct Encounter *enc,const struct Enemy *enemy,const uint8_t *room) {
+    unsigned next=enemy->z-1;
+    if (view_entry(room,1,next)&0x80000000u) return 0;
+    for (unsigned i=0;i<enc->count;i++) {
+        const struct Enemy *other=&enc->enemies[i];
+        if (other->health && other->z==next) return 0;
+    }
+    return 1;
+}
+
+enum { CLOSE_ATTACK_PERIOD=27600 };
+
+static int advance_corridor(struct Encounter *enc,const uint8_t *room,unsigned depth,unsigned dt) {
+    if (room[0]!=1) return 0;
+    /* The first west corridor enters action 3, walks from depth 3 to 2
+       after 49 LCD periods, then strikes 21 periods after the step. */
+    enum { STEP=13440, STRIKE_LEAD=5760 };
+    int changed=0;
+    for (unsigned i=0;i<enc->count;i++) {
+        struct Enemy *e=&enc->enemies[i];
+        if (!e->health || e->reaction || e->z<=depth+1) continue;
+        if (!corridor_step_clear(enc,e,room)) continue;
+        e->walk_time+=dt;
+        unsigned cycle=e->walk_time;
+        if (cycle>=STEP) cycle-=STEP;
+        if (cycle>=6720) cycle-=6720;
+        unsigned phase=3-(cycle>=1680)-(cycle>=3360)-(cycle>=5040);
+        if (e->action!=3 || e->phase!=phase) changed=1;
+        e->action=3;
+        e->phase=phase;
+        if (e->walk_time>=STEP) {
+            e->walk_time-=STEP;
+            e->z--;
+            if (e->z==depth+1) e->attack_time=CLOSE_ATTACK_PERIOD-STRIKE_LEAD;
+            changed=1;
+        }
+    }
+    return changed;
+}
+
+/* At one cell of depth an enemy in the player's view can strike. The
+   original trace repeats a solitary close strike every 100-101 LCD periods. */
+static int close_attacks(struct Encounter *enc,struct Inventory *inv,unsigned lane,unsigned depth,unsigned dt) {
+    static const uint8_t type_damage[]={2,1,4,5};
+    int changed=0;
+    for (unsigned i=0;i<enc->count;i++) {
+        struct Enemy *e=&enc->enemies[i];
+        int x=(int)e->x-camera_x(lane);
+        if (!e->health || e->reaction || e->z!=depth+1 || (unsigned)x>=200) {
+            e->attack_time=0;
+            if (e->action==2) { e->action=8; e->phase=0; changed=1; }
+            continue;
+        }
+        e->attack_time+=dt;
+        if (e->attack_time>=CLOSE_ATTACK_PERIOD) {
+            e->attack_time-=CLOSE_ATTACK_PERIOD;
+            unsigned hit=8+type_damage[e->type];
+            unsigned absorb=hit/2<inv->armor ? hit/2 : inv->armor;
+            inv->armor-=absorb;
+            hit-=absorb;
+            inv->health=inv->health>hit ? inv->health-hit : 0;
+            e->action=2;
+            e->phase=1;
+            changed=1;
+        } else if (e->action==2) {
+            unsigned phase=e->attack_time<13720 || e->attack_time>=21120;
+            if (e->phase!=phase) { e->phase=phase; changed=1; }
+        }
+    }
+    return changed;
+}
 
 static unsigned capped(unsigned value,unsigned limit) {
     return value<limit ? value : limit;
@@ -339,6 +415,7 @@ void play(void) {
     unsigned next_level=1;
     int exit_active=0;
     unsigned exit_time=0, exit_screen=0;
+    unsigned death_time=0;
     const uint8_t *rooms=campaign+levels[1];
     unsigned room_count=*(const uint32_t *)rooms;
     uint32_t taken[256];
@@ -378,23 +455,46 @@ void play(void) {
             keys &= ~(A|START);
         }
         unsigned pressed=keys & ~old_keys;
-        if (exit_active) {
+        int retry=0;
+        if (!inventory.health) {
             old_keys=keys;
-            exit_time+=dt;
-            /* The reference trace reaches the score screen after 292 LCD
-               periods, the next level title after 445, and play after 565. */
-            unsigned screen=exit_time>=122100 ? 3 : exit_time>=80100 ? 2 : exit_time>=19200 ? 1 : 0;
-            if (screen!=exit_screen) {
-                REG16(0x04000000)=0x0100;
-                unsigned card_level=screen==3 ? next_level : level;
-                full_scene(campaign+levels[1+levels[0]]+19200*(3*card_level+screen-1));
-                if (screen==2) {
-                    score_number(96,total_frags);
-                    score_number(128,frags);
+            unsigned menu_at=99000; /* 361 LCD periods from the fatal hit. */
+            if (death_time<menu_at) {
+                death_time+=dt;
+                if (death_time>=menu_at) {
+                    REG16(0x04000000)=0x0100;
+                    full_scene(campaign+levels[1+levels[0]]+19200*3*levels[0]);
                 }
-                exit_screen=screen;
+                continue;
             }
-            if (exit_time<155000) continue;
+            if (!(pressed&A)) continue;
+            retry=1;
+        }
+        if (exit_active || retry) {
+            old_keys=keys;
+            if (retry) {
+                next_level=level;
+                total_frags-=frags;
+                inventory=(struct Inventory){0,0,100,0,0,1};
+                w=(struct Weapon){48,6,0,FLASH*2,0};
+                death_time=0;
+            } else {
+                exit_time+=dt;
+                /* The reference trace reaches the score screen after 292 LCD
+                   periods, the next level title after 445, and play after 565. */
+                unsigned screen=exit_time>=122100 ? 3 : exit_time>=80100 ? 2 : exit_time>=19200 ? 1 : 0;
+                if (screen!=exit_screen) {
+                    REG16(0x04000000)=0x0100;
+                    unsigned card_level=screen==3 ? next_level : level;
+                    full_scene(campaign+levels[1+levels[0]]+19200*(3*card_level+screen-1));
+                    if (screen==2) {
+                        score_number(96,total_frags);
+                        score_number(128,frags);
+                    }
+                    exit_screen=screen;
+                }
+                if (exit_time<155000) continue;
+            }
             level=next_level;
             frags=0;
             rooms=campaign+levels[1+level];
@@ -429,7 +529,14 @@ void play(void) {
                 if (impact==2) { frags++; total_frags++; }
                 changed|=impact;
             }
+            changed|=advance_corridor(&encounter,room,depth,dt);
+            changed|=close_attacks(&encounter,&inventory,lane,depth,dt);
             if (changed) draw_enemies(&atlas,&encounter,lane,depth);
+            if (!inventory.health) {
+                hud_number(20+13,0,&last_health);
+                hud_number(20+41,inventory.armor,&last_armor);
+                continue;
+            }
             unsigned direction=keys & (UP|DOWN|LEFT|RIGHT);
             int door=-1;
             if (depth+1 == room[1]) {
