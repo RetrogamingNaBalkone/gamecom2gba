@@ -10,6 +10,8 @@ internal sealed class Street
     readonly int room;
     readonly List<int> items=new List<int>();
     readonly int sceneryLevel;
+    readonly int sceneryBank;
+    readonly int stageId;
     readonly TileAtlas backgrounds, sprites;
     internal Street(byte[] rom, int level, int number, TileAtlas backgrounds, TileAtlas sprites)
     {
@@ -17,8 +19,11 @@ internal sealed class Street
         this.backgrounds=backgrounds;
         this.sprites=sprites;
         room = Word(0x27, Word(0x27, 0x8000+2*level)+2*number);
-        sceneryLevel=Word(0x28,Word(0x28,0x8000)+2*level);
-        int list=Word(0x22,Word(0x22,0x77c4)+2*level);
+        int episode=level/5, stage=level%5;
+        stageId=((episode+1)<<4)|(stage+1);
+        sceneryBank=episode==0 ? 0x28 : 0x2a;
+        sceneryLevel=Word(sceneryBank,Word(0x28,0x8000+2*episode)+2*stage);
+        int list=Word(0x22,Word(0x22,0x77c4+2*episode)+2*stage);
         for (int p=list; Read(0x22,p)!=255; p+=5)
             if (Read(0x22,p)==Read(0x27,room+16)) items.Add(p);
         if (items.Count>32) throw new InvalidDataException("Too many collectible items in room");
@@ -78,25 +83,43 @@ internal sealed class Street
              Read(0x26,descriptor),Read(0x26,descriptor+1),flip,true);
     }
 
-    void Scenery(byte[,] scene, int lane, int depth, int distance)
+    bool Scenery(byte[,] scene, int lane, int depth, int distance)
     {
-        int columns = Word(0x28,sceneryLevel+2*Read(0x27,room+16));
-        for (int col=columns; Read(0x28,col)!=255; col+=3)
+        int set=Read(0x27,room+16);
+        if ((set&0xf0)!=0) return false;
+        int columns = Word(sceneryBank,sceneryLevel+2*set);
+        // Dark Side room 17 has no cartridge-backed scenery list.
+        if (columns<0x8000 || columns>=0xa000) return false;
+        for (int col=columns; Read(sceneryBank,col)!=255; col+=3)
         {
-            if (Read(0x28,col) != lane) continue;
-            for (int p=Word(0x28,col+1); Read(0x28,p)!=255; p+=3)
+            if (Read(sceneryBank,col) != lane) continue;
+            for (int p=Word(sceneryBank,col+1); Read(sceneryBank,p)!=255; p+=3)
             {
-                if (Read(0x28,p) != depth+distance) continue;
-                int variants=Word(0x28,p+1);
+                if (Read(sceneryBank,p) != depth+distance) continue;
+                int variants=Word(sceneryBank,p+1);
                 int variant=Read(0x22,0x79e1+distance-1);
-                if (variant > Read(0x28,variants)) continue;
+                if (variant > Read(sceneryBank,variants)) continue;
                 int record=variants+1+5*variant;
-                int x=Read(0x28,record+2), flags=Read(0x28,record+4);
+                int x=Read(sceneryBank,record+2), flags=Read(sceneryBank,record+4);
                 if ((flags & 1)!=0) x-=256;
-                Object(scene,Word(0x28,record),x,Read(0x28,record+3),(flags & 2)!=0);
+                int descriptor=Word(sceneryBank,record);
+                if (scene!=null) Object(scene,descriptor,x,Read(sceneryBank,record+3),(flags & 2)!=0);
+                else if (x<150 && (x>=50 || x+Read(0x26,descriptor)>=60)) return true;
             }
-            return;
+            break;
         }
+        return false;
+    }
+
+    bool Blocked(int lane,int depth)
+    {
+        bool overrideRoom=false;
+        for (int p=0x6ec7; Read(0x23,p)!=255; p+=4) {
+            if (Read(0x23,p)!=stageId || Read(0x23,p+1)!=Read(0x27,room+16)) continue;
+            overrideRoom=true;
+            if (Read(0x23,p+2)==lane && Read(0x23,p+3)==((depth-1)&255)) return true;
+        }
+        return !overrideRoom && Scenery(null,lane,depth-1,1);
     }
 
     void WriteItems(BinaryWriter output, int lane, int depth)
@@ -165,7 +188,8 @@ internal sealed class Street
             if (spec==255) continue;
             int position=spec&31, offset=lane-position;
             int kind=Read(0x27,room+7+door)==254 ? 9 : Read(0x27,room+17);
-            int frame=opened ? 3 : 3-((spec>>5)&3);
+            int frame=3-((spec>>5)&3);
+            if (opened) frame=frame==3 ? 0 : 3;
             if (kind==0) {
                 if (Math.Abs(offset)>3) continue;
                 if (distance!=1 || offset!=0) {
@@ -260,24 +284,36 @@ internal sealed class Street
         }
         long table=output.BaseStream.Position;
         for (int i=0; i<Width*Length; i++) output.Write(0);
+        var views=new Dictionary<string,uint>();
         for (int z=0; z<Length; z++)
-            for (int x=1; x<=Width; x++) {
-                long view=output.BaseStream.Position;
-                output.BaseStream.Position=table+4*(z*Width+x-1);
-                output.Write((uint)(view-start));
-                output.BaseStream.Position=view;
-                WriteView(output,View(x,z));
-                WriteItems(output,x,z);
-            }
+            for (int x=1; x<=Width; x++)
+                StoreView(output,views,start,table+4*(z*Width+x-1),x,z,false);
         for (int i=0; i<3; i++) {
             int spec=Read(0x27,room+4+i);
             if (spec==255) continue;
-            long view=output.BaseStream.Position;
-            output.BaseStream.Position=openTable+4*i;
-            output.Write((uint)(view-start));
-            output.BaseStream.Position=view;
-            WriteView(output,View(spec&31,Length-1,true));
-            WriteItems(output,spec&31,Length-1);
+            StoreView(output,views,start,openTable+4*i,spec&31,Length-1,true);
+        }
+    }
+
+    void StoreView(BinaryWriter output,Dictionary<string,uint> views,long roomStart,
+                   long entry,int x,int z,bool opened)
+    {
+        using (var buffer=new MemoryStream())
+        using (var writer=new BinaryWriter(buffer)) {
+            WriteView(writer,View(x,z,opened));
+            WriteItems(writer,x,z);
+            byte[] bytes=buffer.ToArray();
+            string key=Convert.ToBase64String(bytes);
+            uint offset;
+            if (!views.TryGetValue(key,out offset)) {
+                offset=(uint)(output.BaseStream.Position-roomStart);
+                views.Add(key,offset);
+                output.Write(bytes);
+            }
+            long end=output.BaseStream.Position;
+            output.BaseStream.Position=entry;
+            output.Write(offset|(!opened && Blocked(x,z) ? 0x80000000u : 0));
+            output.BaseStream.Position=end;
         }
     }
 }

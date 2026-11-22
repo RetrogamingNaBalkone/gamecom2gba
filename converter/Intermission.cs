@@ -29,14 +29,24 @@ internal static class Intermission
         }
     }
 
-    internal static void Write(byte[] cart,BinaryWriter output)
+    static void Name(byte[] cart,byte[,] scene,int level)
+    {
+        int table=0x21*8192+(0x7597&8191)+2*level;
+        int p=0x21*8192+((cart[table]*256+cart[table+1])&8191);
+        for (int y=80; y<=96; y+=16) {
+            int length=cart[p++];
+            Text(scene,System.Text.Encoding.ASCII.GetString(cart,p,length),y,2,1);
+            p+=length;
+        }
+    }
+
+    internal static void Write(byte[] cart,BinaryWriter output,int level)
     {
         var scene=new byte[160,240];
         Bezel.Draw(scene);
         for (int y=0; y<160; y++) for (int x=20; x<220; x++) scene[y,x]=4;
         Text(scene,"COMPLETED",32,2,1);
-        Text(scene,"HOLLYWOOD",80,2,1);
-        Text(scene,"HOLOCAUST",96,2,1);
+        Name(cart,scene,level);
         Tiles.Write(output,scene);
         for (int y=0; y<160; y++) for (int x=0; x<200; x++) scene[y,x+20]=Tiles.Pixel(cart,0x24,x,y);
         Text(scene,"TOTAL FRAGS",80,1,1);
@@ -46,8 +56,7 @@ internal static class Intermission
         Tiles.Write(output,scene);
         for (int y=0; y<160; y++) for (int x=20; x<220; x++) scene[y,x]=4;
         Text(scene,"ENTERING",32,2,1);
-        Text(scene,"DEATH",80,2,1);
-        Text(scene,"ROW",96,2,1);
+        Name(cart,scene,level);
         Tiles.Write(output,scene);
     }
 }

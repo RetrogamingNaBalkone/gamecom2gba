@@ -51,7 +51,7 @@ internal static class Duke
         foreach (int descriptor in new[] {0x86c2,0x86b3,0x869f,0x86a4,0x86ae,0x86b8})
             WriteWeapon(cart, output, descriptor);
         long campaign=output.BaseStream.Position;
-        const int levels=2;
+        const int levels=15;
         output.Write(levels);
         for (int level=0; level<levels; level++) output.Write(0);
         output.Write(4*(levels+4));
@@ -59,7 +59,7 @@ internal static class Duke
         output.Write(0);
         var backgrounds=new TileAtlas();
         var sprites=new TileAtlas();
-        Intermission.Write(cart,output);
+        for (int level=0; level<levels; level++) Intermission.Write(cart,output,level);
         for (int level=0; level<levels; level++) {
             WriteOffset(output,campaign,level);
             WriteRooms(cart,output,level,backgrounds,sprites);
@@ -82,12 +82,17 @@ internal static class Duke
     {
         long rooms=output.BaseStream.Position;
         int entry=0x8000+2*level;
-        int count=(Pointer(cart,0x27,entry+2)-Pointer(cart,0x27,entry))/2;
+        int tableEnd=level==14 ? Pointer(cart,0x27,Pointer(cart,0x27,0x8000)) : Pointer(cart,0x27,entry+2);
+        int count=(tableEnd-Pointer(cart,0x27,entry))/2;
         output.Write(count);
         for (int i=0; i<count; i++) output.Write(0);
         for (int i=0; i<count; i++) {
             WriteOffset(output,rooms,i);
-            new Street(cart,level,i,backgrounds,sprites).Write(output);
+            try {
+                new Street(cart,level,i,backgrounds,sprites).Write(output);
+            } catch (System.IndexOutOfRangeException e) {
+                throw new InvalidDataException("Invalid scene data for stage "+(level+1)+", room "+i,e);
+            }
         }
     }
 

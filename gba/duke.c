@@ -22,10 +22,14 @@ struct Atlas {
     const uint8_t *backgrounds, *sprites;
 };
 
+static uint32_t view_entry(const uint8_t *room,unsigned lane,unsigned depth) {
+    const uint32_t *offsets=(const uint32_t *)(room+36+4*room[32]);
+    return offsets[depth*room[0]+lane-1];
+}
+
 static void show_view(const struct Atlas *atlas, const uint8_t *room, unsigned lane, unsigned depth,
                       unsigned open_doors, uint32_t taken) {
-    const uint32_t *offsets=(const uint32_t *)(room+36+4*room[32]);
-    unsigned offset=offsets[depth*room[0]+lane-1];
+    unsigned offset=view_entry(room,lane,depth)&0x7fffffff;
     if (open_doors && depth+1==room[1]) {
         for (int i=0; i<3; i++)
             if ((open_doors & (1u<<i)) && (room[4+4*i]&31)==lane)
@@ -157,6 +161,7 @@ void play(void) {
     const uint32_t *levels=(const uint32_t *)campaign;
     struct Atlas atlas={campaign+levels[2+levels[0]],campaign+levels[3+levels[0]]};
     unsigned level=0;
+    unsigned next_level=1;
     int exit_active=0;
     unsigned exit_time=0, exit_screen=0;
     const uint8_t *rooms=campaign+levels[1];
@@ -197,11 +202,12 @@ void play(void) {
             unsigned screen=exit_time>=122100 ? 3 : exit_time>=80100 ? 2 : exit_time>=19200 ? 1 : 0;
             if (screen!=exit_screen) {
                 REG16(0x04000000)=0x0100;
-                full_scene(campaign+levels[1+levels[0]]+19200*(screen-1));
+                unsigned card_level=screen==3 ? next_level : level;
+                full_scene(campaign+levels[1+levels[0]]+19200*(3*card_level+screen-1));
                 exit_screen=screen;
             }
             if (exit_time<155000) continue;
-            level++;
+            level=next_level;
             rooms=campaign+levels[1+level];
             directory=(const uint32_t *)rooms+1;
             room_count=directory[-1];
@@ -242,7 +248,10 @@ void play(void) {
                             } else {
                                 open_doors ^= bit;
                                 show_view(&atlas,room,lane,depth,open_doors,taken[room_id]);
-                                if (room[5+4*i]==254 && (open_doors&bit) && level+1<levels[0]) {
+                                if (room[5+4*i]==254 && (open_doors&bit)) {
+                                    next_level=level+1;
+                                    if (next_level==4 || next_level==9 || next_level==14) next_level++;
+                                    if (next_level==levels[0]) next_level=0;
                                     exit_active=1;
                                     exit_time=0;
                                     exit_screen=0;
@@ -260,12 +269,12 @@ void play(void) {
                 switch (direction) {
                     case UP:
                         if (z+1<room[1]) z++;
-                        else if (room[0]==1 && (room[3]&0x30) && room[5]<room_count) {
+                        else if (room[0]==1 && room[1]>1 && (room[3]&0x30) && room[5]<room_count) {
                             room_id=room[5];
                             room=rooms+directory[room_id];
                             x=1;
                             z=0;
-                        } else if (door>=0 && (open_doors & (1u<<door))) {
+                        } else if (door>=0 && (!!(open_doors & (1u<<door)) != !(room[4+4*door]&0x60))) {
                             const uint8_t *exit=room+4+4*door;
                             if (exit[1]<room_count) {
                                 room_id=exit[1];
@@ -290,8 +299,22 @@ void play(void) {
                             }
                         }
                         break;
-                    case LEFT: if (x>1) x--; break;
-                    case RIGHT: if (x<room[0]) x++; break;
+                    case LEFT: case RIGHT:
+                        if (room[3]==0x30 && room[1]==1) {
+                            const uint8_t *branch=room+(direction==LEFT ? 8 : 4);
+                            if (branch[1]<room_count) {
+                                room_id=branch[1];
+                                room=rooms+directory[room_id];
+                                x=branch[2];
+                                z=0;
+                            }
+                        } else if (direction==LEFT && x>1) x--;
+                        else if (direction==RIGHT && x<room[0]) x++;
+                        break;
+                }
+                if (old_room==room && (view_entry(room,x,z)&0x80000000u)) {
+                    x=lane;
+                    z=depth;
                 }
                 if (old_room!=room) open_doors=0;
                 if (lane!=x || depth!=z || old_room!=room) {

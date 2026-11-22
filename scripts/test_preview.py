@@ -17,9 +17,10 @@ class GameInfo(c.Structure):
                 ("size", c.c_size_t), ("meta", c.c_char_p)]
 
 
-def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0):
+def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0, stage_cards=None):
     core = c.CDLL(str(core_path))
     frames = []
+    capture=False
     pixel_format = 0
     keys = set()
 
@@ -34,7 +35,7 @@ def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0):
         return False
 
     def video(ptr, width, height, pitch):
-        if ptr:
+        if ptr and capture:
             step = 4 if pixel_format == 1 else 2
             frames[:] = [b"".join(c.string_at(ptr + y*pitch, width*step)
                                   for y in range(height))]
@@ -64,19 +65,28 @@ def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0):
             walk_frames = []
             previous_view = None
             last_input=max((end for _,end,_ in walk), default=0)
-            for frame in range(max(360 if firing else 120, last_input+15, final_frame+1)):
+            events={}
+            for pressed,released,button in walk:
+                events.setdefault(pressed,[]).append((button,True))
+                events.setdefault(released,[]).append((button,False))
+            end_frame=max(360 if firing else 120,last_input+15,final_frame+1)
+            for frame in range(end_frame):
+                check_card=stage_cards is not None and frame in stage_cards
+                capture=firing or held_walk or frame==end_frame-1 or check_card
                 if start and frame == 60:
                     keys.add(3)
                 if frame == 62:
                     keys.clear()
-                for pressed, released, button in walk:
-                    if frame == pressed:
+                for button,down in events.get(frame,()):
+                    if down:
                         keys.add(button)
-                    if frame == released:
+                    else:
                         keys.discard(button)
                 if firing and frame == 120:
                     keys.add(8)
                 core.retro_run()
+                if check_card:
+                    check_stage_card(unpack_colors(frames[0],pixel_format),rom,stage_cards[frame])
                 if held_walk and frame >= 84:
                     view = frames[0]
                     if previous_view is not None and view != previous_view:
@@ -109,8 +119,12 @@ def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0):
             core.retro_unload_game()
     finally:
         core.retro_deinit()
+    return unpack_colors(frames[0],pixel_format)
+
+
+def unpack_colors(frame,pixel_format):
     pixels = []
-    for value, in struct.iter_unpack("<I" if pixel_format == 1 else "<H", frames[0]):
+    for value, in struct.iter_unpack("<I" if pixel_format == 1 else "<H", frame):
         if pixel_format == 1:
             rgb = (value >> 19, value >> 11, value >> 3)
         else:
@@ -118,6 +132,31 @@ def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0):
                    value >> (6 if pixel_format == 2 else 5), value)
         pixels.append(tuple(channel & 31 for channel in rgb))
     return pixels
+
+
+def press_steps(walk, frame, commands):
+    # Long neutral gaps allow the same route to cross rooms with different
+    # movement periods, and each press remains a single game action.
+    buttons={"F":4,"L":6,"R":7,"B":0,"D":5}
+    for command in commands.split():
+        for _ in range(int(command[1:] or 1)):
+            walk.append((frame,frame+4,buttons[command[0]]))
+            frame+=20
+    return frame
+
+
+def check_stage_card(pixels,rom,entering_stage):
+    palette=[(0,0,0),(27,31,17),(13,17,9),(1,9,5),(0,0,0),(22,22,21),(5,5,5)]
+    raw=b"".join(struct.pack("<H",r|(g<<5)|(b<<10)) for r,g,b in palette)+bytes(18)
+    campaign=rom.index(raw)+32+2*19200+6*2048
+    levels,=struct.unpack_from("<I",rom,campaign)
+    cards,=struct.unpack_from("<I",rom,campaign+4*(levels+1))
+    title=campaign+cards+(entering_stage*3+2)*19200
+    for y in range(160):
+        for x in range(240):
+            pos=title+32*(30*(y//8)+x//8)+4*(y%8)+(x%8)//2
+            color=(rom[pos]>>(4*(x%2)))&15
+            assert pixels[240*y+x]==palette[color], (entering_stage,x,y)
 
 
 def main():
@@ -244,6 +283,38 @@ def main():
     finish=enter_corridor+[(1010,1060,4),(1090,1094,0),(1110,1240,4),
                            (1270,1380,6),(1410,1414,0)]
     next_level=render(core,expected,start=True,walk=finish,final_frame=2000)
+    # Ordinary campaign route. Each row ends at an exit; the value is the
+    # index of the title expected next, including the original wraparound.
+    routes=[
+        (2,"L2 F6 B F57 B F L F18 R5 F14 B F75 B F9 L3 F B F L F6 B"),
+        (3,"F42 B F R6 F12 R F2 B F30 B F R F21 R F B F34 B F17 B"),
+        (5,"F61 B F R6 F24 B F27 B F63 B F28 B"),
+        (6,"F19 B F16 B F10 B F R5 F6 B F7 B F L6 F7 B F15 B F21 B F27 B F R F6 B F L6 F5 B F8 B F R6 F5 B2 F7 B"),
+        (7,"F6 B F6 B F R F18 B F L7 F5 L F L F B F L2 F8 L B F20 B F7 R F2 R3 B2 F19 B F8 B"),
+        (8,"F6 B F R F5 B F10 B F22 B F R2 F6 B F R F8 B2 F12 B F14 B F10 B F14 B F18 B F25 B F21 B F11 B"),
+        (10,"F5 B F17 B F16 B F L4 F7 B F19 B F13 B F14 B F R8 F4 B F10 B2 F L6 F7 B F22 B"),
+        (11,"F6 B F L4 F10 L3 F B F R3 F7 B"),
+        (12,"L F5 B F13 B F R4 F6 B F R5 F7 B F29 B F L5 F6 B2 F L F19 B F15 B"),
+        (13,"F10 B F7 B F R6 F9 B2 F22 B"),
+        (0,"R4 F6 B F7 B F R3 F7 B F6 B F L9 F6 B F14 B F R F13 L8 F6 B F12 B F L F6 B"),
+    ]
+    campaign_walk=finish.copy()
+    cards={}
+    resume=2010
+    for next_stage,commands in routes:
+        end=press_steps(campaign_walk,resume,commands)
+        cards[end+470]=next_stage
+        resume=end+590
+    returned=render(core,expected,start=True,walk=campaign_walk,final_frame=resume,stage_cards=cards)
+    assert returned[:150*240]==level[:150*240], "campaign wraparound spawn"
+    print("mGBA crossed all 12 normal stage exits and returned to Hollywood Holocaust.")
+    wall=[]
+    frame=press_steps(wall,85,"R9 F4")
+    at_wall=render(core,expected,start=True,walk=wall)
+    frame=press_steps(wall,frame,"F")
+    assert at_wall==render(core,expected,start=True,walk=wall), "street obstacle"
+    press_steps(wall,frame,"L F")
+    assert at_wall!=render(core,expected,start=True,walk=wall), "route around street obstacle"
     beside_medkit=[(85,104,7)]
     before=render(core,expected,start=True,walk=beside_medkit)
     round_trip=[(130,166,4),(190,226,5)]
