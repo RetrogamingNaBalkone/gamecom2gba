@@ -8,6 +8,13 @@ public class DukeActors extends GhidraScript {
     @Override
     public void run() throws Exception {
         createLabel(toAddr(0x60d0),"advance_actors",true);
+        createLabel(toAddr(0x61ef),"choose_action_by_distance",true);
+        createLabel(toAddr(0x63ae),"prepare_forward_step",true);
+        createLabel(toAddr(0x6556),"strafe_right",true);
+        createLabel(toAddr(0x65d6),"strafe_left",true);
+        createLabel(toAddr(0x6879),"actor_scenery_collision",true);
+        createLabel(toAddr(0x68f0),"actor_actor_collision",true);
+        createLabel(toAddr(0x6d2f),"leave_ammo_or_shotgun",true);
         createLabel(toAddr(0x6767),"draw_actors_at_distance",true);
         createLabel(toAddr(0x69fe),"apply_actor_damage",true);
         createLabel(toAddr(0x649d),"strike_player",true);

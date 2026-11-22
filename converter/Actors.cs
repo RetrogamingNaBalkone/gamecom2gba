@@ -16,7 +16,7 @@ internal sealed class Actors
     {
         long start=output.BaseStream.Position;
         const int slots=4*11*4*4;
-        for (int i=0;i<slots;i++) output.Write(0);
+        for (int i=0;i<slots+12;i++) output.Write(0);
         var written=new Dictionary<int,uint>();
         for (int i=0;i<slots;i++) {
             int type=i/(11*16), action=i/16%11, distance=i/4%4;
@@ -29,24 +29,35 @@ internal sealed class Actors
             if (!written.TryGetValue(key,out offset)) {
                 offset=(uint)(output.BaseStream.Position-start);
                 written.Add(key,offset);
-                WriteFrame(output,entry,distance<2);
+                WriteFrame(output,Word(0x22,entry+3),Byte(0x22,entry+1),Byte(0x22,entry+2),distance<2);
             }
             long end=output.BaseStream.Position;
             output.BaseStream.Position=start+4*i;
             output.Write(offset);
             output.BaseStream.Position=end;
         }
+        int slot=slots;
+        foreach (int type in new int[]{6,7,9}) {
+            int poses=Word(0x22,0x7987+2*(type-1));
+            for (int distance=0;distance<4;distance++) {
+                int descriptor=Word(0x22,poses+2*distance);
+                long position=output.BaseStream.Position;
+                output.BaseStream.Position=start+4*slot++;
+                output.Write((uint)(position-start));
+                output.BaseStream.Position=position;
+                WriteFrame(output,descriptor,Byte(0x26,descriptor)/2,Byte(0x26,descriptor+1),false);
+            }
+        }
     }
 
-    void WriteFrame(BinaryWriter output,int entry,bool masked)
+    void WriteFrame(BinaryWriter output,int descriptor,int anchorX,int anchorY,bool masked)
     {
-        int descriptor=Word(0x22,entry+3);
         int width=Byte(0x26,descriptor),height=Byte(0x26,descriptor+1);
         int sx=Byte(0x26,descriptor+2),sy=Byte(0x26,descriptor+3),page=Byte(0x26,descriptor+4);
         output.Write((byte)width);
         output.Write((byte)height);
-        output.Write((byte)Byte(0x22,entry+1));
-        output.Write((byte)Byte(0x22,entry+2));
+        output.Write((byte)anchorX);
+        output.Write((byte)anchorY);
         for (int top=0;top<height;top+=32)
             for (int left=0;left<width;left+=32) {
                 var pixels=new byte[32,32];

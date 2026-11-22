@@ -7,6 +7,8 @@ public class DukeMenu extends GhidraScript {
         createLabel(toAddr(0x6221),"start_selected_episode",true);
         createLabel(toAddr(0x628a),"consume_system_record_flags",true);
         createLabel(toAddr(0x62b0),"unpack_bonus_episode_bits",true);
+        createLabel(toAddr(0x61a0),"submit_password",true);
+        createLabel(toAddr(0x69d3),"verify_password_against_system_record",true);
         createLabel(toAddr(0x6a05),"pause_input_loop",true);
         createLabel(toAddr(0x6b26),"item_code_buttons",true);
         createLabel(toAddr(0x6b2a),"weapon_code_buttons",true);

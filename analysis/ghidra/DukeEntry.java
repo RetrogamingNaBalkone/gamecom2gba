@@ -22,6 +22,9 @@ public class DukeEntry extends GhidraScript {
             createLabel(title,"title_episode_"+(1+stage/5)+"_map_"+(1+stage%5),true);
         }
         createLabel(toAddr(0x6a18), "advance_campaign", true);
+        createLabel(toAddr(0x69d3), "occupied_by_actor", true);
+        createLabel(toAddr(0x6d5d), "password_saved_fields", true);
+        createLabel(toAddr(0x6dee), "restore_password_fields", true);
         createLabel(toAddr(0x6d4d), "weapon_damage_by_skill", true);
         createLabel(toAddr(0x70bf), "cycle_available_weapon", true);
         createLabel(toAddr(0x712b), "weapon_animation_sequences", true);

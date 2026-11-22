@@ -83,7 +83,7 @@ internal sealed class Street
              Read(0x26,descriptor),Read(0x26,descriptor+1),flip,true);
     }
 
-    bool Scenery(byte[,] scene, int lane, int depth, int distance)
+    bool Scenery(byte[,] scene, int lane, int depth, int distance, List<byte> bounds=null)
     {
         bool drew=false;
         int set=Read(0x27,room+16);
@@ -104,11 +104,16 @@ internal sealed class Street
                 int x=Read(sceneryBank,record+2), flags=Read(sceneryBank,record+4);
                 if ((flags & 1)!=0) x-=256;
                 int descriptor=Word(sceneryBank,record);
+                if (bounds!=null) {
+                    int left=Math.Max(0,x),right=Math.Min(200,x+Read(0x26,descriptor));
+                    if (right>left) bounds.AddRange(new byte[]{(byte)distance,(byte)left,(byte)right,
+                        (byte)Read(sceneryBank,record+3),(byte)Read(0x26,descriptor+1)});
+                }
                 if (scene!=null) {
                     Object(scene,descriptor,x,Read(sceneryBank,record+3),(flags & 2)!=0);
                     drew=true;
                 }
-                else if (x<150 && (x>=50 || x+Read(0x26,descriptor)>=60)) return true;
+                else if (bounds==null && x<150 && (x>=50 || x+Read(0x26,descriptor)>=60)) return true;
             }
             break;
         }
@@ -120,9 +125,10 @@ internal sealed class Street
         long start=output.BaseStream.Position;
         output.Write(0);
         int count=0;
+        var bounds=new List<byte>();
         for (int distance=1;distance<4;distance++) {
             var ink=new byte[160,240];
-            if (!Scenery(ink,lane,depth,distance)) continue;
+            if (!Scenery(ink,lane,depth,distance,bounds)) continue;
             for (int y=0;y<136;y+=8)
                 for (int x=0;x<200;x+=8) {
                     ulong mask=0;
@@ -137,6 +143,10 @@ internal sealed class Street
                     count++;
                 }
         }
+        Scenery(null,lane,depth,4,bounds);
+        output.Write(bounds.Count/5);
+        output.Write(bounds.ToArray());
+        while ((output.BaseStream.Position&3)!=0) output.Write((byte)0);
         long end=output.BaseStream.Position;
         output.BaseStream.Position=start;
         output.Write(count);
@@ -183,7 +193,7 @@ internal sealed class Street
     int Spawn(int lane,int depth,int type)
     {
         int worldX=Word(0x22,0x79ed+2*lane)+(lane==1 ? 80 : 10);
-        return worldX|(depth<<16)|(type<<24);
+        return worldX|(depth<<16)|(type<<24)|(lane<<26);
     }
 
     // 20:50D0, seeded at the first Hollywood Holocaust spawn of the reference run.
@@ -346,7 +356,8 @@ internal sealed class Street
         }
         output.Write((byte)Read(0x27,room+13));
         output.Write((byte)Read(0x27,room+14));
-        output.Write((ushort)0);
+        output.Write((byte)Read(0x27,room+16));
+        output.Write((byte)stageId);
         long openTable=output.BaseStream.Position;
         for (int i=0; i<3; i++) output.Write(0);
         output.Write(items.Count);

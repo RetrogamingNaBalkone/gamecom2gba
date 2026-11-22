@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <ctype.h>
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
@@ -14,6 +15,76 @@
 
 static gcsystem_t machine;
 static int frame_number;
+
+static void clear_visible_enemies(unsigned lane,unsigned depth) {
+    const uint8_t *r=machine.bus.ram;
+    for (unsigned f=0;f<1800;f++) {
+        int target=-1,nearest=5;
+        for (int a=0x224;a<0x2fc && r[a]!=255;a+=12) {
+            int distance=(int)r[a+2]-(int)depth;
+            if (r[a]!=r[0xd8] || r[a+1]!=lane || distance<=0 || distance>=nearest) continue;
+            if (!(r[0xc8]&0x30) && distance!=1) continue;
+            nearest=distance;
+            target=a;
+        }
+        if (target<0) break;
+        unsigned x=r[target+6],side=x<50 ? 0xfd : x>150 ? 0xfe : 0xff;
+        gcbus_set_buttons(&machine.bus,side==0xff ? 0x7f : 0xff,side,0xff);
+        gcsystem_run_frame(&machine);
+        frame_number++;
+    }
+}
+
+/* Replay one-cell inputs against the cartridge. Stop holding the direction
+   as soon as its movement handler updates the player's coordinates. */
+static int play_route(const char *route) {
+    uint8_t *r=machine.bus.ram;
+    for (const char *p=route; *p;) {
+        int key=*p++;
+        if (isspace(key)) continue;
+        char *end;
+        long count=strtol(p,&end,10);
+        if (end==p) count=1;
+        p=end;
+        unsigned direction=key=='F' ? 0xfe : key=='D' ? 0xfd : key=='L' ? 0xfb :
+                           key=='R' ? 0xf7 : key=='B' ? 0xfe : 0;
+        if ((!direction && key!='W' && key!='A') || count<=0 || count>2000) return 0;
+        if (key=='W' || key=='A') {
+            gcbus_set_buttons(&machine.bus,key=='A' ? 0x7f : 0xff,0xff,0xff);
+            for (long i=0;i<count;i++) { gcsystem_run_frame(&machine); frame_number++; }
+        } else for (long i=0,misses=0;i<count;i++) {
+            unsigned room=r[0xc2],lane=r[0xc4],depth=r[0xc6];
+            clear_visible_enemies(lane,depth);
+            gcbus_set_buttons(&machine.bus,direction,0xff,key=='B' ? 0xfd : 0xff);
+            for (int f=0;f<(key=='B' ? 16 : 100);f++) {
+                gcsystem_run_frame(&machine); frame_number++;
+                if (room!=r[0xc2] || lane!=r[0xc4] || depth!=r[0xc6]) break;
+            }
+            gcbus_set_buttons(&machine.bus,0xff,0xff,0xff);
+            int settle=key=='B' || room!=r[0xc2] ? 80 : 14;
+            for (int f=0;f<settle;f++) { gcsystem_run_frame(&machine); frame_number++; }
+            if (key!='B' && room==r[0xc2] && lane==r[0xc4] && depth==r[0xc6]) {
+                for (unsigned a=0x224;a<0x2fc && r[a]!=0xff;a+=12) {
+                    if (r[a]!=r[0xd8] || r[a+2]!=depth+1) continue;
+                    unsigned x=r[a+6],side=x<75 ? 0xfd : x>125 ? 0xfe : 0xff;
+                    gcbus_set_buttons(&machine.bus,side==0xff ? 0x7f : 0xff,side,0xff);
+                    for (int f=0;f<350 && r[a]==r[0xd8];f++) {
+                        gcsystem_run_frame(&machine); frame_number++;
+                    }
+                    break;
+                }
+                if (++misses<4) i--;
+                else break;
+            } else misses=0;
+        }
+        unsigned actors=0;
+        for (int i=0x224;i<0x2fc && r[i]!=0xff;i+=12) actors+=r[i]==r[0xd8];
+        fprintf(stderr,"route %c%ld stage=%02x room=%u lane=%u depth=%u actors=%u frags=%u\n",
+                key,count,r[0xc0],r[0xc2],r[0xc4],r[0xc6],actors,r[0x21f]+10*r[0x220]);
+        if (machine.cpu.trapped) return 0;
+    }
+    return 1;
+}
 
 static uint8_t trace_read(void *context, uint16_t address) {
     uint8_t value = gcbus_read(context, address);
@@ -106,6 +177,8 @@ int main(int argc, char **argv) {
         }
     }
     if (read != EOF) return 2;
+    const char *route=getenv("GAMECOM_ROUTE");
+    if (route && !play_route(route)) return 2;
     nvram=getenv("GAMECOM_SAVE_NVRAM");
     if (nvram) {
         FILE *file=fopen(nvram,"wb");
