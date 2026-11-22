@@ -12,13 +12,20 @@ internal static class Intermission
         "1111111111110e","11111111110a04","1111111515150a","11110a040a1111",
         "11110a04040404","1f01020408101f"};
 
+    internal static int GlyphRow(char letter,int row)
+    {
+        if (letter==' ') return 0;
+        if (letter=='.') return row==6 ? 4 : 0;
+        if (letter=='0') return row==0 || row==6 ? 14 : 17;
+        return System.Convert.ToInt32(Font[letter-'A'].Substring(2*row,2),16);
+    }
+
     static void Text(byte[,] scene,string text,int top,int scale,byte color)
     {
         int left=20+(200-(6*text.Length-1)*scale)/2;
         foreach (char c in text) {
             if (c!=' ') for (int y=0; y<7; y++) {
-                int bits=c=='0' ? (y==0 || y==6 ? 14 : 17) :
-                    System.Convert.ToInt32(Font[c-'A'].Substring(2*y,2),16);
+                int bits=GlyphRow(c,y);
                 for (int x=0; x<5; x++)
                     if ((bits&(16>>x))!=0)
                         for (int dy=0; dy<scale; dy++)

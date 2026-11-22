@@ -109,11 +109,13 @@ static int camera_x(unsigned lane) { return lane==1 ? 0 : (int)lane*50-72; }
 
 // Clear covered OBJ pixels in tile order. OBJ VRAM accepts halfword writes.
 static void clip_piece(const uint32_t *masks,unsigned distance,int x,int y,int flip,unsigned tile) {
+    if (distance==1) return;
     unsigned count=*masks++;
     for (unsigned i=0;i<count;i++,masks+=3) {
         const uint8_t *mask=(const uint8_t *)masks;
+        if (mask[2]>=distance) break; /* converter emits scenery nearest first */
         int dx=mask[0]-x,dy=mask[1]-y;
-        if (mask[2]>=distance || dx<=-8 || dx>=32 || dy<=-8 || dy>=32) continue;
+        if (dx<=-8 || dx>=32 || dy<=-8 || dy>=32) continue;
         volatile uint16_t *vram=(volatile uint16_t *)(0x06010000+32*tile);
         for (int row=0;row<8;row++) {
             unsigned bits=mask[4+row];
@@ -130,15 +132,16 @@ static void clip_piece(const uint32_t *masks,unsigned distance,int x,int y,int f
     }
 }
 
-static int fire_at(struct Encounter *enc,unsigned lane,unsigned depth,unsigned pose,uint8_t *damage) {
-    for (unsigned distance=1;distance<=4;distance++)
+static int fire_at(struct Encounter *enc,unsigned lane,unsigned depth,unsigned pose,unsigned weapon,uint8_t *damage) {
+    static const uint8_t power[]={2,4,10,16};
+    for (unsigned distance=1;distance<=(weapon ? 4u : 1u);distance++)
         for (unsigned i=0;i<enc->count;i++) {
             struct Enemy *e=&enc->enemies[i];
             int x=(int)e->x-camera_x(lane);
             if (!e->health || e->action==1 || e->z!=depth+distance || x<0 || x>=200) continue;
             if (pose==1 && (x<50 || x>150)) continue;
             if ((pose==2 && x>75) || (pose==4 && x<125)) continue;
-            unsigned hit=e->health>4 ? 4 : e->health;
+            unsigned hit=e->health>power[weapon] ? power[weapon] : e->health;
             damage[i]+=hit;
             e->health-=hit;
             e->action=1;
@@ -169,7 +172,7 @@ static int animate_hits(struct Encounter *enc,unsigned dt) {
 
 static void draw_enemies(const struct Atlas *atlas,const struct Encounter *enc,unsigned lane,unsigned depth) {
     static const uint8_t ground[]={0,138,118,99,80};
-    volatile uint16_t *oam=(volatile uint16_t *)0x07000008;
+    volatile uint16_t *oam=(volatile uint16_t *)0x070000c0;
     unsigned slot=enc->view.items;
     for (unsigned distance=1;distance<=4;distance++)
         for (unsigned j=enc->count;j>0;j--) {
@@ -196,7 +199,7 @@ static void draw_enemies(const struct Atlas *atlas,const struct Encounter *enc,u
                     oam+=4;
                 }
         }
-    for (;oam<(volatile uint16_t *)0x07000148;oam+=4) oam[0]=0x200;
+    for (;oam<(volatile uint16_t *)0x07000200;oam+=4) oam[0]=0x200;
 }
 
 /* Timer 2 ticks at 16,384 Hz. The opening pistol trace averages 16.3
@@ -207,7 +210,7 @@ static void draw_enemies(const struct Atlas *atlas,const struct Encounter *enc,u
  * first to last (14.75 per step). Timer 2 runs at 16,384 Hz. */
 enum { STREET_STEP = 4046, LOBBY_STEP = 4320 };
 struct Weapon {
-    unsigned remaining, magazine, delay, age, pose;
+    unsigned remaining, magazine, delay, age, pose, kind;
 };
 
 struct Inventory {
@@ -348,22 +351,88 @@ static uint32_t collect(const uint8_t *room, unsigned lane, unsigned depth, uint
     return taken;
 }
 
-static void advance(struct Weapon *w, unsigned dt, unsigned keys) {
-    if (w->age < SHOT) w->age += dt;
+static unsigned ammo(const struct Weapon *w,const struct Inventory *inv) {
+    switch (w->kind) {
+        case 1: return w->remaining;
+        case 2: return inv->shells;
+        case 3: return inv->rockets;
+        default: return 0;
+    }
+}
+
+static void cycle_weapon(struct Weapon *w,const struct Inventory *inv) {
+    do { w->kind=(w->kind+1)&3; }
+    while (w->kind && (!(inv->weapons&(1u<<(w->kind-1))) || !ammo(w,inv)));
+    w->pose=0;
+    w->delay=0;
+    w->magazine=6;
+}
+
+static int advance(struct Weapon *w,struct Inventory *inv,unsigned dt,unsigned keys) {
+    if (w->age<65536) w->age+=dt;
     if (dt < w->delay) {
         w->delay -= dt;
-        return;
+        return 0;
     }
     unsigned overdue = dt - w->delay;
     w->delay = 0;
-    if (!(keys & (A|L|R)) || !w->remaining) return;
-    if (!w->magazine) w->magazine = 6;
-    w->remaining--;
-    w->magazine--;
+    if (!(keys & (A|L|R))) return 0;
+    if (w->kind && !ammo(w,inv)) { cycle_weapon(w,inv); return 0; }
     w->pose = keys & A ? 1 : keys & L ? 2 : 4;
-    unsigned interval = w->magazine ? SHOT : RELOAD;
+    unsigned interval;
+    switch (w->kind) {
+        case 1:
+            if (!w->magazine) w->magazine=6;
+            w->remaining--; w->magazine--;
+            interval=w->magazine || !w->remaining ? SHOT : RELOAD;
+            if (w->pose!=1) interval+=FLASH;
+            break;
+        case 2: inv->shells--; interval=21120; break;
+        case 3: inv->rockets--; interval=w->pose==1 ? 11000 : 21900; break;
+        default: interval=13440; break;
+    }
     w->age = overdue;
     w->delay = overdue < interval ? interval - overdue : 0;
+    return 1;
+}
+
+static unsigned weapon_frame(const struct Weapon *w) {
+    unsigned idle=w->kind*24;
+    if (!w->pose) return idle;
+    unsigned direction=w->pose==1 ? 0 : w->pose==2 ? 1 : 2;
+    unsigned hand=idle+6*direction,t=w->age;
+    switch (w->kind) {
+        case 0: return t<4950 ? hand+2 : t<9900 ? hand+3 : idle;
+        case 1:
+            if (t<FLASH) return hand+2;
+            if (direction && t<SHOT) return hand+3;
+            if (direction) t-=FLASH;
+            if (!w->magazine && w->remaining && t<RELOAD)
+                return idle+18+(t<7300 ? 1 : t<12250 ? 2 : t<17200 ? 3 : 4);
+            return idle;
+        case 2: return t<5500 ? hand+2 : t<11000 ? idle+19 : t<16300 ? idle+20 : idle;
+        default:
+            if (t<5500) return hand+2;
+            if (direction && t<11000) return hand+3;
+            if (direction && t<16500) return hand+4;
+            return idle;
+    }
+}
+
+static void draw_weapon(const uint8_t *frame) {
+    unsigned width=frame[0],height=frame[1],tile=0;
+    int left=20+(200-width)/2,top=136-height;
+    volatile uint16_t *oam=(volatile uint16_t *)0x07000000;
+    const uint8_t *pieces=frame+4;
+    for (unsigned y=0;y<height;y+=32)
+        for (unsigned x=0;x<width;x+=32) {
+            copy_words(pieces,0x06010000+tile*32,128);
+            oam[0]=(top+y)&255;
+            oam[1]=0x8000|((left+x)&511);
+            oam[2]=tile;
+            pieces+=512; tile+=16; oam+=4;
+        }
+    for (;oam<(volatile uint16_t *)0x070000c0;oam+=4) oam[0]=0x200;
 }
 
 static const uint8_t digits[10][5] = {
@@ -419,6 +488,21 @@ static void hud_number(unsigned x,unsigned value,unsigned *previous) {
     digit(x+16,value-10*tens);
 }
 
+static void weapon_label(const uint8_t *glyphs) {
+    volatile uint16_t *tiles=(volatile uint16_t *)0x06000000;
+    for (unsigned col=0;col<8;col++)
+        for (unsigned row=0;row<7;row++) {
+            unsigned bits=*glyphs++,y=150+row;
+            for (unsigned i=0;i<8;i++) {
+                unsigned x=92+col*8+i;
+                unsigned index=((y/8)*30+x/8)*16+(y%8)*2+(x%8)/4;
+                unsigned shift=4*(x%4);
+                unsigned ink=(bits&(32u>>i)) ? 1 : 4;
+                tiles[index]=(tiles[index]&~(15u<<shift))|(ink<<shift);
+            }
+        }
+}
+
 static void reset_rooms(unsigned count,uint32_t *taken,uint8_t *unlocked,uint8_t damage[][18]) {
     for (unsigned i=0;i<count;i++) {
         taken[i]=0;
@@ -429,9 +513,11 @@ static void reset_rooms(unsigned count,uint32_t *taken,uint8_t *unlocked,uint8_t
 }
 
 void play(void) {
-    struct Weapon w = {48, 6, 0, FLASH*2, 0};
-    const uint8_t *campaign=assets + 32 + 2*19200 + 6*2048;
+    struct Weapon w = {48, 6, 0, FLASH*2, 0, 1};
+    const uint8_t *campaign=assets + 32 + 2*19200;
     const uint32_t *levels=(const uint32_t *)campaign;
+    const uint8_t *weapons=campaign+levels[6+levels[0]];
+    unsigned last_weapon_frame=~0u,last_kind=~0u;
     struct Atlas atlas={campaign+levels[2+levels[0]],campaign+levels[3+levels[0]],campaign+levels[4+levels[0]]};
     unsigned level=0;
     unsigned frags=0,total_frags=0;
@@ -463,7 +549,7 @@ void play(void) {
     REG16(0x0400010a) = 0x83;
     unsigned previous = REG16(0x04000108);
     unsigned old_keys = START | A;
-    unsigned last_health=255,last_armor=255,last_ammo=255;
+    unsigned last_health=255,last_armor=255,last_ammo=255,last_key=255;
     int paused = 0;
     uint16_t pause_sequence[6];
     unsigned pause_count=0;
@@ -501,7 +587,7 @@ void play(void) {
                 next_level=level;
                 total_frags-=frags;
                 inventory=(struct Inventory){0,0,100,0,0,1};
-                w=(struct Weapon){48,6,0,FLASH*2,0};
+                w=(struct Weapon){48,6,0,FLASH*2,0,1};
                 death_time=0;
             } else {
                 exit_time+=dt;
@@ -539,7 +625,8 @@ void play(void) {
             enter_encounter(&encounter,room,damage[0]);
             encounter.view=show_view(&atlas,room,lane,depth,0,0);
             draw_enemies(&atlas,&encounter,lane,depth);
-            last_health=last_armor=last_ammo=255;
+            last_health=last_armor=last_ammo=last_key=255;
+            last_kind=~0u;
             REG16(0x04000000)=0x3140;
             continue;
         }
@@ -548,17 +635,15 @@ void play(void) {
         old_keys = keys;
         if (!paused) {
             int changed=animate_hits(&encounter,dt);
-            unsigned ammunition=w.remaining;
-            advance(&w, dt, keys);
-            if (ammunition!=w.remaining) {
-                int impact=fire_at(&encounter,lane,depth,w.pose,damage[room_id]);
+            if (advance(&w,&inventory,dt,keys)) {
+                int impact=fire_at(&encounter,lane,depth,w.pose,w.kind,damage[room_id]);
                 if (impact==2) { frags++; total_frags++; }
                 changed|=impact;
             }
             changed|=advance_corridor(&encounter,room,depth,dt);
             changed|=close_attacks(&encounter,&inventory,lane,depth,dt);
-            if (changed) draw_enemies(&atlas,&encounter,lane,depth);
             if (!inventory.health) {
+                if (changed) draw_enemies(&atlas,&encounter,lane,depth);
                 hud_number(20+13,0,&last_health);
                 hud_number(20+41,inventory.armor,&last_armor);
                 continue;
@@ -580,7 +665,7 @@ void play(void) {
                             } else {
                                 open_doors ^= bit;
                                 encounter.view=show_view(&atlas,room,lane,depth,open_doors,taken[room_id]);
-                                draw_enemies(&atlas,&encounter,lane,depth);
+                                changed=1;
                                 if (room[5+4*i]==254 && (open_doors&bit)) {
                                     next_level=level+1;
                                     unsigned bonus=next_level==4 ? 4 : next_level==9 ? 2 : next_level==14 ? 1 : 0;
@@ -596,6 +681,7 @@ void play(void) {
                     }
                 }
             }
+            if (door<0 && (pressed&B) && !w.delay) cycle_weapon(&w,&inventory);
             if (walk_delay > dt) walk_delay-=dt;
             else if (direction) {
                 unsigned x=lane, z=depth;
@@ -657,7 +743,7 @@ void play(void) {
                 if (lane!=x || depth!=z || old_room!=room) {
                     taken[room_id]=collect(room,x,z,taken[room_id],&inventory,&w);
                     encounter.view=show_view(&atlas,room,x,z,open_doors,taken[room_id]);
-                    draw_enemies(&atlas,&encounter,x,z);
+                    changed=1;
                     lane=x;
                     depth=z;
                 }
@@ -665,12 +751,32 @@ void play(void) {
                 unsigned step=room_id==1 ? LOBBY_STEP : STREET_STEP;
                 walk_delay=overdue < step ? step-overdue : 0;
             } else walk_delay=0;
+            if (changed) draw_enemies(&atlas,&encounter,lane,depth);
         }
-        unsigned pose = w.age < FLASH ? w.pose : 0;
-        if (w.pose >= 2 && w.age >= FLASH && w.age < SHOT) pose = w.pose+1;
-        REG16(0x07000004) = pose*64;
+        unsigned art=((const uint32_t *)weapons)[weapon_frame(&w)];
+        if (last_weapon_frame!=art) {
+            draw_weapon(weapons+art);
+            last_weapon_frame=art;
+        }
         hud_number(20+13,inventory.health,&last_health);
         hud_number(20+41,inventory.armor,&last_armor);
-        hud_number(20+149,w.remaining,&last_ammo);
+        if (last_kind!=w.kind) {
+            weapon_label(weapons+16*6*4+56*w.kind);
+            last_kind=w.kind;
+            last_ammo=255;
+        }
+        unsigned supply=ammo(&w,&inventory);
+        if (w.kind==1) hud_number(20+149,supply,&last_ammo);
+        else if (supply!=last_ammo) {
+            unsigned tens=(supply*205u)>>11;
+            digit(20+149,tens ? tens : 10);
+            digit(20+157,w.kind ? supply-10*tens : 10);
+            digit(20+165,10);
+            last_ammo=supply;
+        }
+        if (last_key!=inventory.key) {
+            digit(20+180,inventory.key);
+            last_key=inventory.key;
+        }
     }
 }

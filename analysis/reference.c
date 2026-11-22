@@ -126,7 +126,10 @@ int main(int argc, char **argv) {
             !!(machine.bus.ram[0xdb]&0x20),machine.bus.ram[0x21e]);
         for (int p=0x300; p<0x364 && machine.bus.ram[p]!=0xff; p+=5)
             fputc(machine.bus.ram[p]==0xfe ? '1' : '0',stderr);
-        fputc('\n',stderr);
+        const uint8_t *r=machine.bus.ram;
+        fprintf(stderr," weapon=%u bullets=%u shells=%u rockets=%u\n",
+                (r[0xc8]>>4)&3,100*r[0x20d]+10*r[0x20c]+r[0x20b],
+                10*r[0x20f]+r[0x20e],10*r[0x211]+r[0x210]);
     }
     if (getenv("GAMECOM_TRACE_STATE")) {
         for (int offset = 0xb0; offset < 0x100; offset += 16) {

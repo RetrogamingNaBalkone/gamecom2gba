@@ -100,9 +100,12 @@ def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0, st
                     if frame == 119:
                         rest = band
                         flashing = False
-                    elif (band != rest) != flashing:
-                        flashing = band != rest
-                        if flashing:
+                    elif band!=rest or flashing:
+                        if not shot_frames:
+                            muzzle=band
+                        was_flashing=flashing
+                        flashing=band==muzzle
+                        if flashing and not was_flashing:
                             shot_frames.append(frame)
             if firing:
                 intervals = [b-a for a,b in zip(shot_frames, shot_frames[1:])]
@@ -148,7 +151,7 @@ def press_steps(walk, frame, commands):
 def check_stage_card(pixels,rom,entering_stage):
     palette=[(0,0,0),(27,31,17),(13,17,9),(1,9,5),(0,0,0),(22,22,21),(5,5,5)]
     raw=b"".join(struct.pack("<H",r|(g<<5)|(b<<10)) for r,g,b in palette)+bytes(18)
-    campaign=rom.index(raw)+32+2*19200+6*2048
+    campaign=rom.index(raw)+32+2*19200
     levels,=struct.unpack_from("<I",rom,campaign)
     cards,=struct.unpack_from("<I",rom,campaign+4*(levels+1))
     title=campaign+cards+(entering_stage*3+2)*19200
@@ -171,6 +174,11 @@ def main():
         data = archive.read(next(i for i in archive.infolist() if i.file_size == 2097152))
     exe = ROOT / "dist/gamecom-gba.exe"
     reference_frames = {}
+    # Number of weapon switches after granting the arsenal, SM8500 art
+    # descriptor, duration of held fire in the reference, GBA shot age.
+    weapon_samples=[(1,0x86e5,18,17),(1,0x86db,44,30),
+                    (2,0x8712,23,17),(3,0x868b,22,16)]
+    reference_weapons={}
     with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
         work = Path(tmp)
         output = work / "output.gba"
@@ -245,6 +253,15 @@ def main():
                 assert int(state.split()[12],16)==register, state
             subprocess.run([exe,raw,output,"--bonus-record",snapshot],check=True,cwd=work)
             assert output.read_bytes()==extended
+            system[start+21:start+24]=bytes((0,32,32))
+            snapshot.write_bytes(system)
+            for switches,descriptor,duration,_ in weapon_samples:
+                inputs=["25 ff ff ff -1 0"]+["12 ff ff fd -1 0","22 ff ff ff -1 0"]*switches
+                inputs.append(f"{duration} 7f ff ff -1 0")
+                result=subprocess.run(original,input="\n".join(tape+inputs).encode(),capture_output=True,
+                                      check=True,env=dict(os.environ,GAMECOM_LOAD_NVRAM=str(snapshot),
+                                                          GAMECOM_LOAD_NVRAM_FRAME="3608"))
+                reference_weapons[descriptor]=result.stdout.split(b"255\n",1)[1]
             for key, port in [(None,None),(4,"fe"),(6,"fb"),(7,"f7"),("held","f7"),
                               ("door",None),("open",None),("entered",None)]:
                 duration = 135 if key == "held" else 12
@@ -314,6 +331,9 @@ def main():
                           "attack frame=5749 actor=0224 type=0 x=108 depth=2 health=90",
                           "attack frame=5850 actor=0224 type=0 x=108 depth=2 health=80"]:
                 assert event.encode() in run.stderr, event
+            armed_west=west[:-1]+["40 ff","14 ff ff fd","40 ff"]
+            verify_items(lobby_tape,armed_west,"weapon=2 bullets=48 shells=6 rockets=0")
+            verify_items(lobby_tape,armed_west+["22 7f","10 ff"],"weapon=2 bullets=48 shells=5 rockets=0")
             reference_frames["corridor"]=verify_items(
                 lobby_tape,unlock+["29 fe ff fd","130 ff","25 fe","132 ff"],
                 "room=5 lane=1 depth=1 key=0")
@@ -402,19 +422,28 @@ def main():
         10:"F7 B F L2 F6 B F19 B F10 B F L11 F8 B F5 B F L3 F4 L B",
         0:"F16 B F R7 F9 B F22 B F7 L3 F3 B",
     }
-    campaign_walk=finish.copy()
-    cards={}
-    resume=2010
+    campaign_walk=after_fight.copy()
+    cards={2280:1}
+    resume=2410
+    def fight_to_exit(start,commands):
+        # Four-frame movement presses must still register while enemies and
+        # weapons animate. Keep firing through the final door interaction.
+        end=press_steps(campaign_walk,start,commands)
+        campaign_walk.append((start+8,end-8,8))
+        return end
     for next_stage,commands in routes:
-        end=press_steps(campaign_walk,resume,commands)
+        end=fight_to_exit(resume,commands)
         if next_stage in extra_routes:
             cards[end+470]=(next_stage-1)%15
-            end=press_steps(campaign_walk,end+590,extra_routes[next_stage])
+            resume=end+590
+            end=fight_to_exit(resume,extra_routes[next_stage])
         cards[end+470]=next_stage
         resume=end+590
     returned=render(core,extended,start=True,walk=campaign_walk,final_frame=resume,stage_cards=cards)
-    assert returned[:150*240]==level[:150*240], "extended campaign wraparound spawn"
-    print("mGBA crossed all 15 stage exits with the three bonus flags enabled.")
+    # The weapon carried into the next lap can differ after fighting. Verify the
+    # full first view above its maximum height as well as the entering title.
+    assert returned[:45*240]==level[:45*240], "extended campaign wraparound spawn"
+    print("mGBA crossed all 15 stage exits while fighting and returned to Hollywood Holocaust.")
     wall=[]
     frame=press_steps(wall,85,"R9 F4")
     at_wall=render(core,expected,start=True,walk=wall)
@@ -434,21 +463,48 @@ def main():
     assert hud_glyph(before,61)==[0]*5 and hud_glyph(after,61)==[2,6,2,2,7]
     assert hud_glyph(after,69)==hud_glyph(after,77)==[7,5,5,5,7]
     assert all(hud_glyph(before,33+dx)==hud_glyph(after,61+dx) for dx in (0,8,16))
-    def check_counter(image,x,number):
+    def check_counter(image,x,number,width=3):
         glyphs=["75557","26227","71747","71717","55711","74717",
                 "74757","71111","75757","75717"]
-        for i,char in enumerate(f"{number:3d}"):
+        text=" "*width if number is None else f"{number:{width}d}"
+        for i,char in enumerate(text):
             wanted="00000" if char==" " else glyphs[int(char)]
             assert hud_glyph(image,x+8*i)==list(map(int,wanted)), (x,number,i)
     paused=[(85,87,3)]
     item_code=paused+[(95,97,8),(105,107,10),(115,117,0),(125,127,10),(135,155,2)]
     check_counter(render(core,expected,start=True,walk=item_code),61,0)
-    check_counter(render(core,expected,start=True,walk=item_code+[(161,163,2)]),61,100)
+    granted=render(core,expected,start=True,walk=item_code+[(161,163,2)])
+    check_counter(granted,61,100)
+    check_counter(granted,200,1,1)
     key_code=[(a+540,b+540,key) for a,b,key in item_code+[(161,163,2),(173,175,3)]]
     beyond=at_lock(direct+key_code,2)
     assert beyond[:136*240]==at_lock(detour,2)[:136*240], "pause code key did not open the exit"
     weapon_code=paused+[(95,97,11),(105,107,8),(115,117,0),(125,127,8),(135,137,0),(145,147,0)]
     check_counter(render(core,expected,start=True,walk=weapon_code),169,200)
+    armed=weapon_code+[(159,161,3)]
+    for count,descriptor,_,age in weapon_samples:
+        switches=[(171+12*i,173+12*i,0) for i in range(count)]
+        frame=render(core,expected,start=True,walk=armed+switches+[(220,221,8)],final_frame=220+age)
+        check_counter(frame,169,None if count==3 else 49,2)
+        p=0x26*8192+(descriptor&8191)
+        width,height,sx,sy,page=data[p:p+5]
+        for y in range(height):
+            for x in range(width):
+                pos=page*16384+64*((sx+x)&255)+((sy+y)&255)//4
+                shift=6-2*((sy+y)%4)
+                ink=(data[pos]>>shift)&3
+                mask=(data[pos+16384]>>shift)&3
+                if not (ink or mask): continue
+                px,py=(200-width)//2+x,136-height+y
+                shade=0 if mask else ink
+                assert frame[py*240+px+20]==colors[shade], (hex(descriptor),px,py)
+                if descriptor in reference_weapons:
+                    assert reference_weapons[descriptor][py*200+px]==(252,126,63,0)[shade]
+    # With only the starting pistol, exhausting all 48 rounds selects the foot.
+    empty=render(core,expected,start=True,walk=[(85,1580,8)],final_frame=1650)
+    foot=render(core,expected,start=True,walk=[(85,87,0)])
+    assert empty==foot, "empty pistol must switch to the boot"
+    check_counter(empty,169,None)
     armored=[]
     press_steps(armored,85,"R2 F4")
     hit=render(core,expected,start=True,walk=armored,final_frame=345)
@@ -457,6 +513,11 @@ def main():
     west=detour+[(915,918,0),(940,1124,6),(1150,1154,0),(1170,1188,4)]
     for frame,health in [(1200,100),(1260,90),(1360,80)]:
         check_counter(render(core,expected,start=True,walk=west,final_frame=frame),33,health)
+    equipped=west+[(1203,1205,0)]
+    check_counter(render(core,expected,start=True,walk=equipped),169,6,2)
+    clear=render(core,expected,start=True,walk=equipped+[(1212,1214,8)],final_frame=1360)
+    check_counter(clear,33,100)
+    check_counter(clear,169,5,2)
     contact=[]
     press_steps(contact,85,"F4")
     fatal=render(core,expected,start=True,walk=contact,final_frame=650)

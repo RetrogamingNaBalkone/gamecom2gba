@@ -70,19 +70,16 @@ internal static class Duke
         DrawObject(cart, screen, 0x8217, 0, 136, false);
         Tiles.Write(output, screen);
 
-        // The pistol is a separate hardware object. Its paired ROM page paints
-        // light ink into otherwise transparent pixels on the original LCD.
-        foreach (int descriptor in new[] {0x86c2,0x86b3,0x869f,0x86a4,0x86ae,0x86b8})
-            WriteWeapon(cart, output, descriptor);
         long campaign=output.BaseStream.Position;
         const int levels=15;
         output.Write(levels);
         for (int level=0; level<levels; level++) output.Write(0);
-        output.Write(4*(levels+6));
+        output.Write(4*(levels+7));
         output.Write(0);
         output.Write(0);
         output.Write(0);
         output.Write(bonusFlags);
+        output.Write(0);
         var backgrounds=new TileAtlas();
         var sprites=new TileAtlas();
         for (int level=0; level<levels; level++) Intermission.Write(cart,output,level);
@@ -97,6 +94,8 @@ internal static class Duke
         backgrounds.Write(output);
         WriteOffset(output,campaign,levels+2);
         sprites.Write(output);
+        WriteOffset(output,campaign,levels+5);
+        WriteWeapons(cart,output);
     }
 
     static void WriteOffset(BinaryWriter output,long start,int index)
@@ -125,20 +124,60 @@ internal static class Duke
         }
     }
 
-    static void WriteWeapon(byte[] cart, BinaryWriter output, int descriptor)
+    static void WriteWeapons(byte[] cart,BinaryWriter output)
     {
-        var pistol = new byte[64,64];
-        int weapon = Offset(0x26, descriptor);
-        int left = 32 - (cart[weapon] + 1) / 2;
-        int top = 64 - cart[weapon+1];
-        for (int y = 0; y < cart[weapon+1]; y++)
-            for (int x = 0; x < cart[weapon]; x++)
-            {
-                int sx = cart[weapon+2] + x, sy = cart[weapon+3] + y;
-                byte ink = Tiles.Pixel(cart, cart[weapon+4], sx, sy);
-                bool light = Tiles.Pixel(cart, cart[weapon+4]+1, sx, sy) != 1;
-                pistol[top+y,left+x] = light ? (byte)1 : ink == 1 ? (byte)0 : ink;
+        long start=output.BaseStream.Position;
+        const int groups=16, slots=6;
+        for (int i=0;i<groups*slots;i++) output.Write(0);
+        for (int kind=0;kind<4;kind++) {
+            int entry=0x21*8192+(0x6f52&8191)+2*kind;
+            int p=0x21*8192+((cart[entry]*256+cart[entry+1])&8191);
+            for (int col=0;col<8;col++) {
+                char letter=cart[p]==0 ? ' ' : (char)cart[p++];
+                for (int row=0;row<7;row++) output.Write((byte)Intermission.GlyphRow(letter,row));
             }
-        Tiles.Write(output, pistol);
+        }
+        var frames=new System.Collections.Generic.Dictionary<int,int>();
+        int table=0x21*8192+(0x712b&8191);
+        for (int group=0;group<groups;group++) {
+            int last=0;
+            for (int phase=0;phase<slots;phase++) {
+                if (cart[table]!=255) {
+                    last=cart[table]*256+cart[table+1];
+                    table+=2;
+                }
+                int offset;
+                if (!frames.TryGetValue(last,out offset)) {
+                    offset=(int)(output.BaseStream.Position-start);
+                    frames.Add(last,offset);
+                    if (last<0x8000) output.Write(0); // empty hand or unused phase
+                    else WriteWeaponFrame(cart,output,Offset(0x26,last));
+                }
+                long end=output.BaseStream.Position;
+                output.BaseStream.Position=start+4*(group*slots+phase);
+                output.Write(offset);
+                output.BaseStream.Position=end;
+            }
+            if (cart[table++]!=255) throw new InvalidDataException("Invalid weapon sequence.");
+        }
+    }
+
+    static void WriteWeaponFrame(byte[] cart,BinaryWriter output,int p)
+    {
+        int width=cart[p],height=cart[p+1],page=cart[p+4];
+        output.Write((byte)width);
+        output.Write((byte)height);
+        output.Write((ushort)0);
+        for (int top=0;top<height;top+=32)
+            for (int left=0;left<width;left+=32) {
+                var tile=new byte[32,32];
+                for (int y=0;y<32 && top+y<height;y++)
+                    for (int x=0;x<32 && left+x<width;x++) {
+                        int sx=(cart[p+2]+left+x)&255,sy=(cart[p+3]+top+y)&255;
+                        byte ink=Tiles.Pixel(cart,page,sx,sy);
+                        tile[y,x]=Tiles.Pixel(cart,page+1,sx,sy)!=1 ? (byte)1 : ink==1 ? (byte)0 : ink;
+                    }
+                Tiles.Write(output,tile);
+            }
     }
 }

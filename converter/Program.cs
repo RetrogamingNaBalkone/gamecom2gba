@@ -21,6 +21,24 @@ internal static class Program
         }
     }
 
+    static void Publish(string temporary,string path)
+    {
+        for (int attempt=0;;attempt++) {
+            try {
+                if (File.Exists(path)) File.Replace(temporary,path,null);
+                else File.Move(temporary,path);
+                return;
+            } catch (IOException error) {
+                int code=error.HResult&0xffff;
+                // A Windows scanner may hold the destination briefly. A second
+                // converter can also create it between Exists and Move.
+                if (attempt==4 || !File.Exists(temporary) ||
+                    (code!=32 && code!=33 && code!=80 && code!=183 && code!=1175)) throw;
+                System.Threading.Thread.Sleep(50<<attempt);
+            }
+        }
+    }
+
     static int Main(string[] args)
     {
         if (!(args.Length == 2 || (args.Length == 4 && args[2] == "--bonus-record"))
@@ -46,8 +64,7 @@ internal static class Program
             temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             using (var file = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write))
                 WritePreview(cart, file, bonusFlags);
-            if (File.Exists(path)) File.Replace(temporary, path, null);
-            else File.Move(temporary, path);
+            Publish(temporary,path);
             Console.WriteLine("Duke graphics preview: " + path);
             return 0;
         }

@@ -49,9 +49,6 @@ enter_level:
     mov r2, #0x06000000
     ldr r3, =4800
     bl copy_words
-    ldr r2, =0x06010000
-    mov r3, #3072           @ six preloaded 64 x 64 pistol poses
-    bl copy_words
     ldr r1, =assets
     ldr r2, =0x05000200
     mov r3, #8
@@ -63,13 +60,6 @@ hide_object:
     strh r4, [r2], #8
     subs r3, r3, #1
     bne hide_object
-    mov r2, #0x07000000
-    mov r4, #72             @ weapon canvas ends above the HUD
-    strh r4, [r2]
-    ldr r4, =0xc058         @ 64 x 64, x=20+68
-    strh r4, [r2, #2]
-    mov r4, #0
-    strh r4, [r2, #4]
     ldr r1, =0x1140         @ BG0, OBJ, linear OBJ tiles
     strh r1, [r0]
     ldr r1, =play

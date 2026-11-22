@@ -22,6 +22,10 @@ public class DukeEntry extends GhidraScript {
             createLabel(title,"title_episode_"+(1+stage/5)+"_map_"+(1+stage%5),true);
         }
         createLabel(toAddr(0x6a18), "advance_campaign", true);
+        createLabel(toAddr(0x6d4d), "weapon_damage_by_skill", true);
+        createLabel(toAddr(0x70bf), "cycle_available_weapon", true);
+        createLabel(toAddr(0x712b), "weapon_animation_sequences", true);
+        createLabel(toAddr(0x71a5), "render_current_weapon", true);
         createLabel(toAddr(0x67cb), "junction_left", true);
         createLabel(toAddr(0x681c), "junction_right", true);
         DecompInterface decompiler = new DecompInterface();
