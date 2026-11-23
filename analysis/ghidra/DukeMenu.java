@@ -4,6 +4,10 @@ import ghidra.app.script.GhidraScript;
 public class DukeMenu extends GhidraScript {
     @Override
     public void run() throws Exception {
+        createLabel(toAddr(0x4811),"clock_differential_pcm",true);
+        createLabel(toAddr(0x4c85),"advance_first_music_voice",true);
+        createLabel(toAddr(0x4d17),"advance_second_music_voice",true);
+        createLabel(toAddr(0x8c71),"packed_sample_directory",true);
         createLabel(toAddr(0x6221),"start_selected_episode",true);
         createLabel(toAddr(0x628a),"consume_system_record_flags",true);
         createLabel(toAddr(0x62b0),"unpack_bonus_episode_bits",true);

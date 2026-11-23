@@ -1,92 +1,76 @@
 # game.com → GBA
 
-Конвертер собирает нативный порт Duke Nukem 3D (USA) из картриджа пользователя. В ROM находятся три эпизода по пять карт. Новая игра на чистой game.com проходит по четырём картам каждого эпизода. После Hotel Hell игра возвращается на Hollywood Holocaust. Ещё три карты включаются флагами системной записи Duke.
+Native Game Boy Advance ports of Tiger game.com games. The converter builds each supported game from your own cartridge dump.
 
-Противники преследуют Дюка, обходят друг друга в широких комнатах, отступают, перекрывают путь и наносят урон вблизи. Погибший противник может оставить патроны или дробовик. Итоги уровня показывают число фрагов за карту и за игру. После гибели кнопка A начинает уровень заново. Пароль и другие пункты меню смерти пока доступны только в оригинале.
+## Port status
 
-Предметы используют аппаратные спрайты и исчезают при подборе. Вторая комната Hollywood Holocaust содержит ключ. Удобный маршрут от входа — пять шагов вправо, девять вперёд, восемь влево. Вернитесь на восемь шагов вправо и дойдите до стены. У запертой двери первое нажатие **B** расходует ключ, второе открывает дверь.
+| Game | Status | Player guide |
+|---|---|---|
+| Duke Nukem 3D | Playable in mGBA, in development | [Duke Nukem 3D for GBA](docs/duke-nukem-3d.md) |
+| Resident Evil 2 | Backlog |  |
+| Batman & Robin | Backlog |  |
+| Castlevania | Backlog |  |
+| Fighters Megamix | Backlog |  |
+| Indy 500 | Backlog |  |
+| Jurassic Park | Backlog |  |
+| Mortal Kombat Trilogy | Backlog |  |
+| Sonic Jam | Backlog |  |
 
-## Как открыть дополнительные карты на game.com
+The Duke player guide covers ROM conversion, controls, passwords, and differences from game.com. The [original cartridge findings](docs/duke-nukem-3d-original-assets.md) document the bonus maps and digitized sound samples.
 
-Запустите оригинальный Duke хотя бы один раз, чтобы картридж создал запись в системной памяти. Сохраните дамп NVRAM размером 8192 байта. Следующая команда создаёт отдельную копию с точкой продолжения перед Launching Facility. Для двух других карт укажите `lunatic-fringe` или `freeway`.
+## Development
 
-```powershell
-py scripts/bonus_checkpoint.py originals/gamecom.nv launching-facility build/launching-facility.nv
-```
-
-Загрузите копию NVRAM в эмуляторе game.com. В меню картриджа выберите **Options → Password**, введите **AAAA** и подтвердите кнопкой **C**. Пароль сверяется с буквами, записанными в той же NVRAM. Скрипт оставляет обычный пистолет с 48 патронами и записывает контрольную сумму продолжения. Способ открыть эти уровни на чистой консоли обычной игрой пока не установлен.
-
-| Карта | Следующая карта | Фраги в контрольном прохождении оригинала |
-|---|---|---:|
-| Launching Facility | Space Port | 48 |
-| Lunatic Fringe | Raw Meat | 17 |
-| Freeway | Hollywood Holocaust | 11 |
-
-В Tigerbyte каждая карта пройдена от загрузки через меню пароля до выхода со стартовым пистолетом, обычным здоровьем и без читов. На Launching Facility маршрут проходит через аптечку в стартовой комнате и броню в четвёртой комнате. Тест перемещается и стреляет кнопками. Картридж сам обрабатывает противников, предметы, двери, фраги и переход на следующую карту.
-
-## Конвертация в Windows
-
-Из корня проекта:
-
-```powershell
-.\dist\gamecom-gba.exe ".\originals\Duke Nukem 3D (USA).zip" ".\dist\duke3d-preview.gba"
-```
-
-Конвертер — отдельный EXE для Windows с .NET Framework. Его можно перенести в другой каталог. Поддерживаются ZIP и сырой образ картриджа. Для этой сборки достаточно ROM. При ошибке конвертер возвращает ненулевой код и сохраняет предыдущий выходной файл.
-
-Чтобы перенести доступ к дополнительным картам из своей game.com, добавьте после имени выходного файла `--bonus-record "originals/gamecom.nv"`. Подойдёт дамп NVRAM размером 8192 байта или отдельная 43-байтовая системная запись Duke. Конвертер сверяет имя, версию и контрольную сумму записи. В сборку попадают только три бита доступа, по одному на эпизод. Они действуют при каждом запуске этой сборки. Без записи сохраняется исходный маршрут новой игры на чистой консоли.
-
-| Поддерживаемая ревизия | Размер распакованного ROM | SHA‑256 |
-|---|---:|---|
-| Duke Nukem 3D (USA) | 2 097 152 байта | `faf6912c5094477fa83a19864f43eb2acd5929166d8b9267689d6661f5ceb5bd` |
-
-На заставке нажмите **Start** или **A** и отпустите кнопку. Крестовина перемещает Дюка, **B** открывает дверь перед ним, шаг вперёд ведёт в следующую комнату. Вне позиции у двери **B** переключает оружие. Доступны удар ногой, пистолет, дробовик и RPG. Игра пропускает оружие без патронов. Если продолжать огонь с пустым оружием, Дюк переключится на следующее доступное. На стартовой улице первая дверь находится в шестой позиции справа от точки появления. **A** стреляет прямо, **L/R** — в стороны, **Start** ставит игру на паузу. Магазин вмещает шесть патронов. Кадры оружия собираются из аппаратных спрайтов GBA размером 32×32 пикселя. Стены и рамка занимают слой BG0, двери — BG1, декорации — BG2. При шаге или открытии двери GBA обновляет изменившиеся группы из трёх тайлов. Слои, спрайты предметов и противников, а также экраны между уровнями используют общий словарь пиксельных строк. Ходьба и стрельба используют аппаратный таймер.
-
-На паузе последовательность **A, L, B, L, Select, Select** даёт ключ и 100 единиц брони. Отпускайте Select между двумя нажатиями. Последовательность **R, A, B, A, B, B** пополняет запас оружия и боеприпасов.
-
-## Сборка и проверка
+### Build and verify on Windows
 
 ```powershell
 .\scripts\build.ps1
 .\scripts\test-reference.ps1
 ```
 
-Сборка использует общие установки Zig 0.13.0, gbafix и компилятор C# из Windows .NET Framework. Скрипт принимает `-ZigExe` и `-GbaFix`, также ищет инструменты в PATH и под `%LOCALAPPDATA%\Programs`. Исходник утилиты для заголовка GBA доступен в проекте [devkitPro gba-tools](https://github.com/devkitPro/gba-tools/blob/master/src/gbafix.c).
+The build uses Zig 0.13.0, `gbafix`, and the Windows .NET Framework C# compiler. The build script accepts `-ZigExe` and `-GbaFix` and also searches PATH and the per-user tools directory under `%LOCALAPPDATA%\Programs`. It produces the standalone Windows converter at `dist/gamecom-gba.exe`. [devkitPro gbafix source](https://github.com/devkitPro/gba-tools/blob/master/src/gbafix.c)
 
-Тест запускает конвертер из временного каталога и загружает результат в установленное ядро mGBA. Для сравнения с game.com он собирает программу `analysis/reference.c` из исходников общей установки Tigerbyte. Для неё требуются два пользовательских ZIP из `originals/` с именами `[BIOS] Tiger Game.com (USA) (Internal).zip` и `[BIOS] Tiger Game.com (USA) (External).zip`. Скрипт принимает `-PythonExe` и `-Tigerbyte`, путь к ядру задаётся через `MGBA_LIBRETRO`. Для проверки только GBA достаточно команды ниже. [Tigerbyte](https://github.com/codingncaffeine/Tigerbyte)
+| Supported cartridge | Unpacked size | SHA-256 |
+|---|---:|---|
+| Duke Nukem 3D (USA) | 2,097,152 bytes | `faf6912c5094477fa83a19864f43eb2acd5929166d8b9267689d6661f5ceb5bd` |
+
+The reference test builds `analysis/reference.c` against a local Tigerbyte installation. Put the two BIOS archives in `originals/` as `[BIOS] Tiger Game.com (USA) (Internal).zip` and `[BIOS] Tiger Game.com (USA) (External).zip`. The script accepts `-PythonExe` and `-Tigerbyte`. Set `MGBA_LIBRETRO` to the mGBA core path if needed. [Tigerbyte](https://github.com/codingncaffeine/Tigerbyte)
+
+For GBA-only verification after building the converter, run:
 
 ```powershell
 py scripts/test_preview.py "originals/Duke Nukem 3D (USA).zip"
 ```
 
-Тест сравнивает ZIP с переименованным распакованным ROM, проверяет отказ при изменении байта и сохранность предыдущей сборки. В mGBA он сверяет заставку 200×160, боковые полосы и интервалы между вспышками пистолета. Контрольный прогон game.com дополнительно сравнивает верхние 150 строк первого игрового кадра. Нижние десять строк включают числовые поля и системный шрифт. Палитра соответствует режиму LCD оригинала. Референс корпуса — фотография исходной модели работы Evan-Amos. [Видеодрайвер MAME](https://github.com/mamedev/mame/blob/master/src/mame/tiger/gamecom_v.cpp) · [Фотография корпуса](https://commons.wikimedia.org/wiki/File:Tiger-Game-Com-FL.jpg)
+The tests compare ZIP and raw cartridge inputs, check that an unsupported ROM leaves the previous output intact, and exercise the opening, both campaign routes, pickups, combat, death and retry, password continuation, and audio in mGBA. The game.com reference also checks the first 150 lines of the initial gameplay frame. The bottom 10 lines include numeric HUD fields and the system font. [Test suite](scripts/test_preview.py)
 
-## Исследование Duke
+### Rendering and timing
 
-Для Ghidra подготовлен частичный модуль `SM8500:BE:16:cart`. Его исходники находятся в `analysis/SM8500`. Для новой установки скопируйте модуль в общий каталог `Ghidra/Processors/SM8500` и скомпилируйте `data/languages/sm8500.slaspec` штатной утилитой sleigh. У установленного модуля скомпилированная `sm8500.sla` лежит рядом с `sm8500.ldefs`.
+The Duke runtime draws walls and the bezel on BG0, doors on BG1, and scenery on BG2. It draws pickups, enemies, and weapon frames with hardware sprites. The converter shares pixel rows across the graphics. During play, the runtime updates changed groups of three background tiles. A hardware timer drives movement and weapon cadence independently of redraws. The palette follows the game.com LCD mode and the bezel lettering was redrawn from the original console. [GBA runtime](gba/duke.c) · [MAME video driver](https://github.com/mamedev/mame/blob/master/src/mame/tiger/gamecom_v.cpp) · [Bezel reference](https://www.zaonce.com/images/consoles/game.com.png) · [Console photograph](https://commons.wikimedia.org/wiki/File:Tiger-Game-Com-FL.jpg)
+
+On the original opening street, the reference measured 16–17 display intervals between pistol shots and 78 across a reload. In the one-step-forward combat replay, both versions matched the damage from all 11 hits and the 50-frame interval between the first two hits. The first GBA hit arrived nine frames later in that replay. Playability and timing on physical GBA hardware remain open.
+
+### Inspect the original cartridge in Ghidra
+
+Install the partial `SM8500:BE:16:cart` processor module from `analysis/SM8500` in Ghidra's `Processors/SM8500` directory. Compile `data/languages/sm8500.slaspec` with Ghidra's `sleigh` tool, placing the compiled `sm8500.sla` next to `sm8500.ldefs`. From the repository root:
 
 ```powershell
 .\analysis\import-duke.ps1 "originals/Duke Nukem 3D (USA).zip"
 ```
 
-Параметр `-View Actors` создаёт отдельный проект `DukeActors.gpr` и проверяет указатели кадров четырёх типов противников по таблицам банков 22 и 26. Проект запуска Ghidra сохраняется в `build/ghidra/DukeStartup.gpr`. Импорт представляет окно запуска после переключения банков. Повторный запуск открывает имеющийся проект. Исходники конвертера используют описания графических ресурсов. Сами тайлы, маски и изображения извлекаются при запуске конвертера.
+The script imports the cartridge's bank-switched startup window into `build/ghidra/DukeStartup.gpr` and reopens that project on subsequent runs. Use `-View Actors` for frame tables in banks 22 and 26 or `-View Menu` for password, bonus-flag, and pause routines.
 
-| Банк CPU и адрес | Проверенное назначение |
+| CPU bank and address | Verified behavior |
 |---|---|
-| `20:4020` | Диспетчер запуска. Для игрового пути в окна `6000` и `8000` устанавливаются банки `21` и `26`. |
-| `21:65B9`, `65C6`, `65CD` | Чтение параметров прямоугольника и восьмибайтной записи элемента сцены. Все три процедуры декомпилируются в Ghidra. |
-| `24:82C4` | Указатель на список элементов фона в начальной позиции. Старший бит последнего байта отмечает конец списка. |
-| `26:86C2` | Дескриптор пистолета в покое. Соседняя графическая страница задаёт светлые пиксели маски. |
-| `22:649D`, `6B3E`, `6B94` | При атаке игра складывает урон от сложности и типа противника. Половину с округлением вниз принимает броня. Остаток и нехватку брони игра вычитает из здоровья. Счётчики хранят десятичные цифры по одному байту. |
-| `21:60F7`, банк данных `27` | Выбор уровня и комнаты через две таблицы 16-битных указателей. У Hollywood Holocaust 13 записей комнат, начальная площадка имеет 11 позиций в ширину и 9 в глубину. |
-| `21:6621`, `6718`, `67A8`, `67F9` | Обработчики перемещения вперёд, назад и в стороны. Регистры памяти `C4` и `C6` задают положение в комнате. |
-| `20:43BE`, `21:69A2`, `23:6EC7` | Для одних комнат игра проверяет пересечение с декорацией, для других читает таблицу непроходимых клеток. |
-| `21:6A18`, `23:62B0` | После выхода с карты игра выбирает следующую по номеру эпизода и флагам дополнительных уровней. После третьего эпизода счёт начинается заново. |
-| `23:628A`, `6B87`, `6CB2`, `6CD7` | Проект Ghidra для `-View Menu` размечает чтение флагов из записи и обработчики секретов на паузе. В записи байт по смещению `0x16` содержит маски 4, 2 и 1 для эпизодов 1, 2 и 3. |
-| `21:6D4D`, `70BF`, `712B` | Урон по виду оружия и сложности, выбор следующего доступного оружия и таблицы кадров для прямой атаки, двух боковых атак и перезарядки. Ботинок достаёт на одну клетку, огнестрельное оружие — на четыре. |
+| `20:4020` | Startup dispatcher maps banks `21` and `26` into the `6000` and `8000` windows for gameplay. |
+| `21:65B9`, `65C6`, `65CD` | Read rectangle parameters and eight-byte scene entries. |
+| `24:82C4` | Points to the opening background entry list. The high bit of the final entry's last byte terminates the list. |
+| `26:86C2` | Idle pistol descriptor. The neighboring graphics page supplies the light pixels of the mask. |
+| `22:649D`, `6B3E`, `6B94` | Compute damage from skill and enemy type. Armor absorbs half, rounded down, up to the remaining armor. Health takes the remainder. |
+| `21:60F7`, data bank `27` | Select the level and room through two 16-bit pointer tables. Hollywood Holocaust has 13 room entries. Its opening area is 11 positions wide and 9 deep. |
+| `21:6621`, `6718`, `67A8`, `67F9` | Movement handlers. RAM locations `C4` and `C6` hold the player's position in the room. |
+| `20:43BE`, `21:69A2`, `23:6EC7` | Collision checks use the scenery or a table of blocked cells, depending on the room. |
+| `21:6A18`, `23:62B0` | Select the next map using the episode and bonus flags. |
+| `23:628A`, `6B87`, `6CB2`, `6CD7` | Read system record flags and handle pause secrets. |
+| `21:6D4D`, `70BF`, `712B` | Weapon damage, weapon cycling, and attack and reload frame tables. The boot reaches one cell and firearms reach four. |
 
-Частота обновления оригинального LCD около 59,73 Гц. На первом виде улицы при удержании огня контрольный эмулятор показал 16–17 интервалов развёртки между выстрелами и 78 при перезарядке. В порте время оружия задаёт аппаратный таймер. Точность темпа на физической консоли предстоит проверить.
-
-В контрольном прогоне Hollywood Holocaust после одного шага вперёд и ожидания первый удар снижает здоровье со 100 до 91, второй — до 81. Одиннадцатый удар обнуляет здоровье на кадре 5380 от старта BIOS. На кадре 5620 оригинал показывает пароль, на 5741 — меню смерти с выбранным «restart same level». Кнопка A возвращает игрока на старт этого уровня. В отдельном прогоне после подбора брони первый удар оставляет 95 здоровья и 96 брони.
-
-Тест mGBA проходит с боем кампании из 12 и 15 карт без кодов, сверяет каждый переход, проверяет подбор оружия, расход патронов, смерть и повторный старт. На стартовой улице проверяются два боя до гибели Дюка. Если стоять на месте, последние две пары ударов приходятся на один кадр, как на game.com. После шага вперёд совпадают урон всех одиннадцати ударов и интервал в 50 кадров между первыми двумя. В этом сценарии первый удар на GBA приходит на девять кадров позже. После подбора брони первый удар оставляет 95 здоровья и 96 брони. Звук остаётся в работе. Правила проекта собраны в [AGENTS.md](AGENTS.md).
+[Project rules](AGENTS.md)

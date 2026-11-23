@@ -72,8 +72,8 @@ INVENTORY=496
 
 def fight_campaign(ram,plan,rom):
     """Choose buttons from the live player's position and projected actors."""
-    buttons={"F":4,"D":5,"L":6,"R":7,"B":0}
-    # Locate the native room directory after the two screen assets.
+    buttons={"F":4,"D":5,"L":6,"R":7,"B":8}
+    # Locate the native room directory after the palette and gameplay tiles.
     campaign=campaign_offset(rom)
     def word(offset):
         return struct.unpack_from("<I",rom,offset)[0]
@@ -90,7 +90,7 @@ def fight_campaign(ram,plan,rom):
             x-=left
             if hp and 0<=x<200 and 0<z-depth<nearest:
                 nearest=z-depth
-                aim=10 if x<50 else 11 if x>150 else 8
+                aim=10 if x<50 else 11 if x>150 else 0
         return aim,nearest
     vectors={"F":(0,1),"D":(0,-1),"L":(-1,0),"R":(1,0)}
     def drive(key,header):
@@ -103,7 +103,7 @@ def fight_campaign(ram,plan,rom):
             best=3 if rockets and weapons&4 else 2 if shells and weapons&2 else 1 if ammo else 0
             if kind!=best and depth+1<rom[header+1]:
                 yield [],max(3,delay//274+3),None
-                yield [0],4,None
+                yield [8],4,None
                 yield [],4,None
                 continue
             aim,nearest=target(lane,depth)
@@ -155,26 +155,32 @@ def fight_campaign(ram,plan,rom):
                     yield from detour(header,(lane+dx,depth+dz),{((lane,depth),key)})
         if next_stage is None: continue
         yield [],445,None
+        if stage//5!=next_stage//5:
+            episode=next_stage//5
+            yield [],176,("opening",10+episode)
+            yield [],122,("opening",13+episode)
         yield [],1,next_stage
         yield [],132,None
         assert position()[:2]==(next_stage,0),(next_stage,position())
 
 
 def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0, stage_cards=None,
-           campaign=None,tail=(),observed=None):
+           campaign=None,tail=(),observed=None,episode=0,audio_samples=None,save=None,audio_start=120,audio_end=320,
+           intro_frames=80,video_probe=None):
     core = c.CDLL(str(core_path))
     frames = []
     capture=False
     pixel_format = 0
     keys = set()
     iwram=None
+    memory={}
 
     def environment(command, data):
         nonlocal pixel_format,iwram
         if command==0x10024:
             mapping=c.cast(data,c.POINTER(MemoryMap))[0]
-            iwram=next((d.ptr+d.offset for d in mapping.descriptors[:mapping.count]
-                        if d.start==0x03000000),None)
+            memory.update((d.start,d.ptr+d.offset) for d in mapping.descriptors[:mapping.count] if d.ptr)
+            iwram=memory.get(0x03000000)
             return True
         if command == 10:
             pixel_format = c.cast(data, c.POINTER(c.c_uint))[0]
@@ -185,17 +191,30 @@ def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0, st
         return False
 
     def video(ptr, width, height, pitch):
+        if ptr and video_probe and frame>=0:
+            video_probe(frame,memory)
         if ptr and capture:
             step = 4 if pixel_format == 1 else 2
             frames[:] = [b"".join(c.string_at(ptr + y*pitch, width*step)
                                   for y in range(height))]
+
+    audible=set()
+    frame=-1
+    def audio_batch(ptr,n):
+        if ptr and audio_samples is not None and audio_start<=frame<audio_end:
+            audio_samples.setdefault(frame,bytearray()).extend(c.string_at(ptr,4*n))
+        if firing and frame>=119 and ptr:
+            pcm=c.cast(ptr,c.POINTER(c.c_int16))
+            if any(abs(pcm[i])>256 for i in range(0,2*n,16)):
+                audible.add(frame)
+        return n
 
     callbacks = []
     for name, signature, function in [
         ("environment", (c.c_bool, c.c_uint, c.c_void_p), environment),
         ("video_refresh", (None, c.c_void_p, c.c_uint, c.c_uint, c.c_size_t), video),
         ("audio_sample", (None, c.c_int16, c.c_int16), lambda *_: None),
-        ("audio_sample_batch", (c.c_size_t, c.c_void_p, c.c_size_t), lambda _, n: n),
+        ("audio_sample_batch", (c.c_size_t, c.c_void_p, c.c_size_t), audio_batch),
         ("input_poll", (None,), lambda: None),
         ("input_state", (c.c_int16, c.c_uint, c.c_uint, c.c_uint, c.c_uint),
          lambda port, device, index, button: int(port == 0 and device == 1 and button in keys)),
@@ -210,6 +229,22 @@ def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0, st
         core.retro_load_game.restype = c.c_bool
         assert core.retro_load_game(c.byref(info))
         try:
+            if save is not None:
+                core.retro_get_memory_data.restype=c.c_void_p
+                size=core.retro_get_memory_size(0)
+                ram=core.retro_get_memory_data(0)
+                assert ram and size>=256, "SRAM unavailable"
+                if save:
+                    assert len(save)==size
+                    c.memmove(ram,bytes(save),size)
+            if start:
+                # Navigate the real opening before the existing timed gameplay tape.
+                for _ in range(intro_frames): core.retro_run()
+                for button in [3,8]+[5]*episode+[8,8,8,8]:
+                    keys.add(button)
+                    for _ in range(4): core.retro_run()
+                    keys.clear()
+                    for _ in range(4): core.retro_run()
             shot_frames = []
             held_walk = walk == [(85,220,7)]
             walk_frames = []
@@ -251,7 +286,7 @@ def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0, st
                     else:
                         keys.discard(button)
                 if firing and frame == 120:
-                    keys.add(8)
+                    keys.add(0)
                 core.retro_run()
                 if observed is not None and iwram and frame>=70:
                     health=c.c_uint32.from_address(iwram+INVENTORY+8).value
@@ -273,9 +308,12 @@ def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0, st
                 observed["position"]=struct.unpack("<4I",c.string_at(iwram,16))
                 observed["inventory"]=struct.unpack("<6I",c.string_at(iwram+INVENTORY,24))
                 observed["weapon"]=struct.unpack("<6I",c.string_at(iwram+WEAPON,24))
+            if save is not None:
+                save[:]=c.string_at(ram,size)
             if campaign: assert done,"campaign replay timed out"
             if firing:
                 intervals = [b-a for a,b in zip(shot_frames, shot_frames[1:])]
+                assert len(audible)>20, "silent mGBA audio output"
                 assert len(intervals) >= 9, shot_frames
                 assert all(16 <= n <= 17 for n in intervals[:5]), intervals
                 assert 77 <= intervals[5] <= 79, intervals
@@ -304,10 +342,34 @@ def unpack_colors(frame,pixel_format):
     return pixels
 
 
+def check_scenery_sprite_updates(core,rom):
+    """Step towards the street scenery while the first enemies approach."""
+    samples=[]
+
+    def probe(frame,memory):
+        if 84<=frame<=96:
+            oam=c.string_at(memory[0x07000000]+48*8,40*8)
+            vram=memory[0x06000000]
+            scenery=c.string_at(vram+0x8c00,17*30*32)
+            first_piece=c.string_at(vram+0x10000+384*32,512)
+            samples.append((frame,oam,scenery,first_piece))
+
+    render(core,rom,start=True,walk=[(85,87,4)],final_frame=96,video_probe=probe)
+    assert samples and samples[0][0]==84
+    _,old_oam,old_scenery,old_piece=samples[0]
+    assert struct.unpack_from("<H",old_oam)[0]!=0x200 and any(old_scenery) and any(old_piece)
+    for frame,oam,scenery,piece in samples[1:]:
+        if oam!=old_oam:
+            assert scenery!=old_scenery and piece!=old_piece, frame
+            return
+        assert scenery==old_scenery and piece==old_piece, ("mixed scenery and sprite frame",frame)
+    raise AssertionError("street move did not publish new sprites")
+
+
 def press_steps(walk, frame, commands):
     # Long neutral gaps allow the same route to cross rooms with different
     # movement periods, and each press remains a single game action.
-    buttons={"F":4,"L":6,"R":7,"B":0,"D":5}
+    buttons={"F":4,"L":6,"R":7,"B":8,"D":5}
     for command in commands.split():
         for _ in range(int(command[1:] or 1)):
             walk.append((frame,frame+4,buttons[command[0]]))
@@ -318,7 +380,7 @@ def press_steps(walk, frame, commands):
 def campaign_offset(rom):
     palette=[(0,0,0),(27,31,17),(13,17,9),(1,9,5),(0,0,0),(22,22,21),(5,5,5)]
     raw=b"".join(struct.pack("<H",r|(g<<5)|(b<<10)) for r,g,b in palette)+bytes(18)
-    return rom.index(raw)+32+2*19200
+    return rom.index(raw)+32+19200
 
 
 def card_tiles(rom,card):
@@ -329,6 +391,10 @@ def card_tiles(rom,card):
     cards=campaign+word(campaign+4*(levels+1))
     bank=campaign+word(campaign+4*(levels+2))
     records=bank+word(bank)
+    if isinstance(card,tuple):
+        opening=campaign+word(campaign+4*(levels+7))
+        cards=opening+4+12*word(opening)
+        card=card[1]
     layout=records+word(cards+4*card)
     tiles=bytearray()
     for row in struct.unpack_from("<20I",rom,layout):
@@ -343,9 +409,197 @@ def card_tiles(rom,card):
     return tiles
 
 
+def check_main_menu(core,rom):
+    def navigate(buttons, **kwargs):
+        tape=[(70+12*i,74+12*i,key) for i,key in enumerate(buttons)]
+        return render(core,rom,walk=tape,**kwargs)
+
+    # Hash the complete LCD, including all unselected entries, against Tigerbyte.
+    hashes=["a6971ad23160a85abf52c1470abbb0a08091f87c4303f0386a2610704fc378cd",
+            "3ee744809ab832e159ff18c7a1ac67eb9dbf7bb17dcb88b589d3786db31fd004",
+            "0a2a3de0cdf2a2f11f617849e272ca6f8057e70a3bfb2e8524f0e965ff450152",
+            "33ada3bf9267c154036c4ecc31e7df11e494f59c100cbf8115bf84e517e1725e"]
+    for buttons,digest in zip(([3],[3,5],[3,5,5],[3,5,8]),hashes):
+        pixels=navigate(buttons)
+        lcd=bytes({27:252,13:126,1:63,0:0}[pixels[y*240+x][0]]
+                  for y in range(160) for x in range(20,220))
+        assert hashlib.sha256(lcd).hexdigest()==digest,buttons
+    assert navigate([3,5,5,8,3])==navigate([3])
+
+    save=bytearray()
+    render(core,rom,start=True,episode=1,save=save)
+    assert save[0]==0xd3 and save[1]==5
+    checkpoint=bytes(save[:18])
+    navigate([3,5,8,5,8,8],save=save)
+    assert save[18]==0xad and save[:18]==checkpoint
+    navigate([3,5,8,5,8,8],save=save)
+    assert save[18]==0 and save[:18]==checkpoint
+    buttons=[3,5,8,8]
+    cursor=0
+    for symbol in save[13:17]:
+        if symbol//10!=cursor//10: buttons.append(5 if symbol>=10 else 4)
+        dx=symbol%10-cursor%10
+        buttons.extend([7 if dx>0 else 6]*abs(dx))
+        buttons.append(8)
+        cursor=symbol
+    state={}
+    navigate(buttons+[3,8],save=save,observed=state)
+    assert state["position"][:2]==(5,0) and save[:18]==checkpoint,state
+    print("mGBA verified main menu, quit, sound preference and password after reboot.")
+
+
+def check_audio_mix(core,rom):
+    # Silence only the selected source data in three test copies. The four
+    # replays send identical inputs and execute the same native sound driver.
+    campaign=campaign_offset(rom)
+    def word(p):
+        return struct.unpack_from("<I",rom,p)[0]
+    audio=campaign+word(campaign+4*(word(campaign)+8))
+    def replay(muted):
+        image=bytearray(rom)
+        for id in muted:
+            p=audio+word(audio+4*id)
+            if id<27:
+                length=word(p)
+                image[p+4:p+4+length]=bytes(length)
+            else:
+                while image[p+3]:
+                    image[p+2]=0
+                    p+=4
+        samples={}
+        render(core,bytes(image),start=True,walk=[(85,97,4),(120,220,0)],
+               final_frame=220,audio_samples=samples)
+        return samples
+    mix=replay([])
+    without_music=replay([29,30])
+    without_weapon=replay([10])
+    without_monsters=replay([25,26])
+    def audible_difference(first,second):
+        a=memoryview(first).cast("h")
+        b=memoryview(second).cast("h")
+        assert len(a)==len(b)
+        return sum(abs(a[i]-b[i]) for i in range(0,len(a),16))>128*(len(a)//16)
+    overlap=[frame for frame in mix if all(audible_difference(mix[frame],probe[frame])
+             for probe in (without_music,without_weapon,without_monsters))]
+    assert len(overlap)>=5,("missing simultaneous music, weapon or monster audio",overlap)
+    # Compare the end of the opening line with and without a held trigger.
+    line=audio+word(audio+4*17)
+    quiet=bytearray(rom)
+    quiet[line+4:line+4+word(line)]=bytes(word(line))
+    endings=[]
+    for inputs in ([],[(78,355,0)]):
+        recordings=[]
+        for image in (rom,bytes(quiet)):
+            frames={}
+            render(core,image,start=True,walk=inputs,final_frame=360,audio_samples=frames,
+                   audio_start=280,audio_end=361)
+            recordings.append(frames)
+        a,b=recordings
+        voiced=[f for f in a if audible_difference(a[f],b[f])]
+        assert voiced,"missing end of opening speech"
+        endings.append(voiced[-1])
+    assert abs(endings[0]-endings[1])<=1,endings
+    print("mGBA mixed music, gunfire and monster sounds on",len(overlap),"combat frames.")
+
+
+def check_combat_speech(core,rom,route):
+    bank=campaign_offset(rom)
+    def word(p):
+        return struct.unpack_from("<I",rom,p)[0]
+    bank+=word(bank+4*(word(bank)+8))
+    def replay(silent,intro_frames,save=None):
+        image=bytearray(rom)
+        if silent is not None:
+            sample=bank+word(bank+4*silent)
+            length=word(sample)
+            image[sample+4:sample+4+length]=bytes(length)
+        frames={}
+        render(core,bytes(image),start=True,campaign=route,audio_start=0,intro_frames=intro_frames,save=save,
+               audio_end=250000,audio_samples=frames)
+        return [hashlib.sha256(pcm).digest() for pcm in frames.values()]
+    heard=set()
+    first_taunts=set()
+    kills=0
+    lines=0
+    for delay in range(80,400,17):
+        save=bytearray()
+        baseline=replay(None,delay,save)
+        kills+=struct.unpack_from("<H",save,11)[0]
+        starts=[]
+        for sample in (18,24,20,4):
+            probe=replay(sample,delay)
+            diff=[i for i,(normal,muted) in enumerate(zip(baseline,probe)) if normal!=muted]
+            if sample==4:
+                assert len(diff)>=5,"inaudible results farewell"
+            elif len(diff)>=5:
+                heard.add(sample)
+                starts.append((diff[0],sample))
+                lines+=1+sum(b-a>30 for a,b in zip(diff,diff[1:]))
+        if starts:
+            first_taunts.add(min(starts)[1])
+        if len(heard)==3 and len(first_taunts)>1 and kills>=40:
+            break
+    assert len(heard)==3 and len(first_taunts)>1,(heard,first_taunts)
+    assert 0<lines<kills/2,(lines,kills)
+    print(f"mGBA heard all three combat taunts, {lines} lines across {kills} kills.")
+
+
+def check_episode_openings(core,rom,cart):
+    campaign=campaign_offset(rom)
+    def word(p):
+        return struct.unpack_from("<I",rom,p)[0]
+    audio=campaign+word(campaign+4*(word(campaign)+8))
+    def entry(id):
+        return audio+word(audio+4*id)
+    def listen(image,episode,last_frame):
+        pcm={}
+        render(core,bytes(image),start=True,episode=episode,final_frame=last_frame,
+               audio_samples=pcm,audio_start=0)
+        return pcm
+
+    no_speech=bytearray(rom)
+    speech=entry(17)
+    no_speech[speech+4:speech+4+word(speech)]=bytes(word(speech))
+    colors=[(27,31,17),(13,17,9),(1,9,5),(0,0,0)]
+    for episode in range(3):
+        assert (listen(rom,episode,115)!=listen(no_speech,episode,115))==(episode==0),episode
+        buttons=[3,8]+[5]*episode+[8,8,8]
+        walk=[(80+8*i,84+8*i,button) for i,button in enumerate(buttons)]
+        pixels=render(core,rom,walk=walk,final_frame=80+8*len(buttons))
+        for y in range(160):
+            for x in range(200):
+                packed=cart[(0x27-episode)*16384+64*x+y//4]
+                assert pixels[240*y+20+x]==colors[(packed>>(6-2*(y%4)))&3],(episode,x,y)
+
+    # Replace only the start of the episode 2 score. Its second voice has a
+    # note beyond the first voice's repeat point, which must never play.
+    score=bytearray(rom)
+    first,second=entry(31),entry(32)
+    struct.pack_into("<HBBI",score,first,1750,31,32,0)
+    struct.pack_into("<HBBHBBHBBI",score,second,1580,31,8,1620,31,28,1710,31,16,0)
+    alternate=bytearray(score)
+    struct.pack_into("<H",alternate,second+8,1810)
+    pcm=listen(score,1,120)
+    assert pcm==listen(alternate,1,120), "second voice played beyond the repeat point"
+
+    # Begin a long note after audio capture starts. Its decay should last
+    # longer than the former 42-step hardware counter and end before the note.
+    struct.pack_into("<HBBHBBI",score,first,0,0,32,1750,31,64,0)
+    score[second+2]=score[second+6]=score[second+10]=0
+    quiet=bytearray(score)
+    quiet[first+6]=0
+    pcm=listen(score,1,75)
+    muted=listen(quiet,1,75)
+    audible=[frame for frame in pcm if
+             max(abs(a-b) for a,b in zip(memoryview(pcm[frame]).cast("h"),
+                                         memoryview(muted[frame]).cast("h")))>128]
+    assert 11<=len(audible)<=16 and audible[-1]<75,audible
+    print("mGBA verified episode art, the opening line, shared repeats and note decay.")
+
+
 def check_stage_card(pixels,rom,entering_stage):
     palette=[(0,0,0),(27,31,17),(13,17,9),(1,9,5),(0,0,0),(22,22,21),(5,5,5)]
-    title=card_tiles(rom,entering_stage*3+2)
+    title=card_tiles(rom,entering_stage if isinstance(entering_stage,tuple) else entering_stage*3+2)
     for y in range(160):
         for x in range(240):
             pos=32*(30*(y//8)+x//8)+4*(y%8)+(x%8)//2
@@ -384,8 +638,13 @@ def main():
         # Compare every card with the lossless, pre-optimization graphics.
         cards=hashlib.sha256()
         for card in range(46):
-            cards.update(card_tiles(expected,card))
-        assert cards.hexdigest()=="d5f8dbeaa0540716f8e7321543166be41b48f925fced064e1e4ee46f51ce35ca"
+            tiles=card_tiles(expected,card)
+            # Hash the LCD only, so refinements to the bezel are independent.
+            for y in range(160):
+                for tx in range(2,28):
+                    off=32*(30*(y//8)+tx)+4*(y%8)
+                    cards.update(tiles[off+(2 if tx==2 else 0):off+(2 if tx==27 else 4)])
+        assert cards.hexdigest()=="ea52b33d2cc22130e1ff09da5608cf2625a9eaad1a331c318f14522ebe35d113"
         raw.write_bytes(data[:-1] + bytes([data[-1] ^ 1]))
         assert subprocess.run([exe, raw, output], cwd=work).returncode == 1
         assert expected == output.read_bytes()
@@ -543,17 +802,27 @@ def main():
             finish=through_corridor+["130 fe","12 ff","130 fb","12 ff","30 fe ff fd"]
             reference_frames["next_level"]=verify_items(
                 lobby_tape,finish+["540 ff"],"room=0 lane=4 depth=0 key=0")
-    pixels = render(core, expected)
+    pixels = render(core, expected,final_frame=600)
     assert len(pixels) == 240*160
     colors = [(27,31,17), (13,17,9), (1,9,5), (0,0,0)]
     for y in range(160):
         for x in range(200):
-            packed = data[0x94000 + 64*x + y//4]
+            packed = data[0x50*16384 + 64*(x+56) + (y+96)//4]
             assert pixels[y*240+x+20] == colors[(packed >> (6-2*(y%4))) & 3], (x,y)
     for x0 in (0, 220):
         side = {pixels[y*240+x] for y in range(160) for x in range(x0, x0+20)}
         assert side == {(22,22,21), (5,5,5)}
+    left_ink=[x for x in range(19) if any(pixels[y*240+x]==(5,5,5) for y in range(160))]
+    assert (min(left_ink),max(left_ink))==(2,15)
+    check_main_menu(core,expected)
+    check_audio_mix(core,expected)
+    check_episode_openings(core,expected,data)
+    check_scenery_sprite_updates(core,expected)
     level = render(core, expected, start=True)
+    for episode in (1,2):
+        state={}
+        render(core,expected,start=True,episode=episode,observed=state)
+        assert state["position"][:2]==(5*episode,0),state
     # From lane 2 to lane 8, then to the front wall. A closed door blocks Up.
     def visit(commands,tail=(),walk=()):
         state={}
@@ -574,6 +843,15 @@ def main():
     corridor,inside,_=visit(enter_corridor)
     assert inside==(5,1,1)
     finish=detour+" B2 F6 B F9 L8 B"
+    # The exit press is held for four frames with a sixteen-frame release in
+    # drive(). Compare each of the visible emblem changes with the original LCD.
+    whole="e8da89a17b35e3d94392a3add841a079c566931975b43392ba687b89ec8eb872"
+    split="63213b83131f599d1cdb732f4322f76cb17e13154c3cfbf952cc133eaf75863f"
+    for wait,digest in [(62,whole),(84,split),(112,whole)]:
+        frame,_,_=visit(finish,[([],wait)])
+        lcd=bytes({27:252,13:126,1:63,0:0}[frame[y*240+x][0]]
+                  for y in range(160) for x in range(20,220))
+        assert hashlib.sha256(lcd).hexdigest()==digest,(wait,"exit animation")
     next_level,spawn,_=visit(finish,[([],570)])
     assert spawn==(0,4,0)
     score,_,_=visit(finish,[([],320)])
@@ -603,13 +881,13 @@ def main():
         (0,"R4 F6 B F7 B F R3 F7 B F6 B F L9 F6 B F14 B F R F13 L8 F6 B F12 B F L F6 B"),
     ]
     first=(1,"R6 F8 B F R5 F9 L8 R8 F2 B2 F6 B F9 L8 B")
+    check_combat_speech(core,expected,[first,routes[0]])
     normal=[first,*routes]
-    extended_route=[first]
-    for next_stage,commands in routes:
-        if next_stage in BONUS_ROUTES:
-            extended_route.append(((next_stage-1)%15,commands))
-            commands=BONUS_ROUTES[next_stage]
-        extended_route.append((next_stage,commands))
+    commands_by_stage=dict(zip((0,1,2,3,5,6,7,8,10,11,12,13),
+                               (commands for _,commands in normal)))
+    commands_by_stage.update({4:BONUS_ROUTES[5],9:BONUS_ROUTES[10],14:BONUS_ROUTES[0]})
+    full_order=[0,1,2,4,3,5,6,7,8,9,10,11,12,13,14,0]
+    extended_route=[(dest,commands_by_stage[src]) for src,dest in zip(full_order,full_order[1:])]
     for image,plan in [(expected,normal),(extended,extended_route)]:
         returned=render(core,image,start=True,campaign=plan)
         assert returned[:20*240]==level[:20*240], "campaign wraparound spawn"
@@ -651,9 +929,28 @@ def main():
     weapon_code=paused+[(95,97,11),(105,107,8),(115,117,0),(125,127,8),(135,137,0),(145,147,0)]
     check_counter(render(core,expected,start=True,walk=weapon_code),169,200)
     armed=weapon_code+[(159,161,3)]
+    # Exercise the PCM routing through real weapon switches and B. Only the
+    # sample selected by the cartridge for that weapon should affect output.
+    audio_bank=campaign_offset(expected)
+    level_count=struct.unpack_from("<I",expected,audio_bank)[0]
+    audio_bank+=struct.unpack_from("<I",expected,audio_bank+4*(level_count+8))[0]
+    for switches,effect in enumerate((10,12,11,3)):
+        muted=bytearray(expected)
+        sample=audio_bank+struct.unpack_from("<I",expected,audio_bank+4*effect)[0]
+        length=struct.unpack_from("<I",expected,sample)[0]
+        muted[sample+4:sample+4+length]=bytes(length)
+        route=armed+[(171+12*i,173+12*i,8) for i in range(switches)]+[(220,221,0)]
+        recordings=[]
+        for image in (expected,bytes(muted)):
+            pcm={}
+            render(core,image,start=True,walk=route,final_frame=240,audio_samples=pcm)
+            recordings.append(pcm)
+        a,b=recordings
+        assert all(a[f]==b[f] for f in range(200,220)),effect
+        assert any(a[f]!=b[f] for f in range(221,240)),effect
     for count,descriptor,_,age in weapon_samples:
-        switches=[(171+12*i,173+12*i,0) for i in range(count)]
-        frame=render(core,expected,start=True,walk=armed+switches+[(220,221,8)],final_frame=220+age)
+        switches=[(171+12*i,173+12*i,8) for i in range(count)]
+        frame=render(core,expected,start=True,walk=armed+switches+[(220,221,0)],final_frame=220+age)
         check_counter(frame,169,None if count==3 else 49,2)
         p=0x26*8192+(descriptor&8191)
         width,height,sx,sy,page=data[p:p+5]
@@ -670,13 +967,33 @@ def main():
                 if descriptor in reference_weapons:
                     assert reference_weapons[descriptor][py*200+px]==(252,126,63,0)[shade]
     # With only the starting pistol, exhausting all 48 rounds selects the foot.
-    empty,_,empty_state=visit(enter_corridor,[([8],7000),([],100)])
+    empty,_,empty_state=visit(enter_corridor,[([0],7000),([],100)])
     assert empty_state["weapon"][0]==0 and empty_state["weapon"][5]==0
     check_counter(empty,169,None)
     west=detour+" L11 B F"
     step=[([4],4),([],16)]
-    _,at,arrival=visit(west,step)
+    floor,_,_=visit("R6 F8 B F L6 F11 B F")
+    picked,at,arrival=visit(west,step)
     assert at==(2,1,1),at
+    # Compare the floor shotgun with its distance-two cartridge sprite.
+    # The held pistol obscures its middle, so compare both exposed ends.
+    def word(bank,address):
+        return struct.unpack_from(">H",data,bank*8192+(address&8191))[0]
+    art=word(0x22,word(0x22,0x7987+2*(9-1))+2)
+    width,height,sx,sy,page=data[0x26*8192+(art&8191):][:5]
+    bottom=data[0x22*8192+(0x6a3d&8191)]
+    matches=visible=0
+    for y in range(height):
+        for x in range(width):
+            if width//2-14<=x<width//2+14: continue
+            raw=data[page*16384+64*(sx+x)+(sy+y)//4]
+            shade=(raw>>(6-2*((sy+y)%4)))&3
+            if shade:
+                visible+=1
+                matches+=floor[(bottom-height+y)*240+120-width//2+x]==colors[shade]
+    assert visible>300 and matches>visible*0.95,(matches,visible)
+    # SHOT GUN, centered in the top row, is the cartridge pickup notice.
+    assert any(picked[y*240+88:y*240+152]!=floor[y*240+88:y*240+152] for y in range(8))
     _,_,injured=visit(west,step+[([],180)])
     assert injured["inventory"][2]<arrival["inventory"][2], "corridor attacker missed"
     # At the west entrance there are six shells even if the player already

@@ -249,7 +249,7 @@ internal sealed class Street
                     output.Write((byte)index);
                     output.Write((byte)(20+sx));
                     output.Write((byte)sy);
-                    output.Write((byte)0);
+                    output.Write((byte)distance);
                     using (var buffer=new MemoryStream(512))
                     using (var image=new BinaryWriter(buffer)) {
                         Tiles.Write(image,pixels);
@@ -265,7 +265,7 @@ internal sealed class Street
         output.BaseStream.Position=end;
     }
 
-    void Doors(byte[,] scene, int lane, int distance, bool opened)
+    void Doors(byte[,] scene, int lane, int distance, bool opened,int exitFrame=-1)
     {
         if (distance>3) return;
         for (int door=0; door<3; door++) {
@@ -275,6 +275,7 @@ internal sealed class Street
             int kind=Read(0x27,room+7+door)==254 ? 9 : Read(0x27,room+17);
             int frame=3-((spec>>5)&3);
             if (opened) frame=frame==3 ? 0 : 3;
+            if (exitFrame>=0 && kind==9 && offset==0 && distance==1) frame=exitFrame;
             if (kind==0) {
                 if (Math.Abs(offset)>3) continue;
                 if (distance!=1 || offset!=0) {
@@ -310,7 +311,7 @@ internal sealed class Street
         int doors=backgrounds.Empty;
         if (Length-depth<=3) {
             var layer=new byte[136,240];
-            Doors(layer,lane,Length-depth,opened);
+            Doors(layer,lane,Length-depth,opened,opened ? 1 : -1);
             doors=backgrounds.AddLayer(layer);
         }
         writer.Write(doors);
@@ -374,6 +375,15 @@ internal sealed class Street
                 parts.SetLength(0);
                 WriteOcclusion(records,x,z);
                 writer.Write(backgrounds.Add(parts.ToArray()));
+            }
+            for (int door=0;opened && door<3;door++) {
+                if ((Read(0x27,room+4+door)&31)!=x || Read(0x27,room+7+door)!=254) continue;
+                for (int frame=2;frame<=3;frame++) {
+                    var layer=new byte[136,240];
+                    Doors(layer,x,1,true,frame);
+                    writer.Write(backgrounds.AddLayer(layer));
+                }
+                break;
             }
             byte[] bytes=buffer.ToArray();
             string key=Convert.ToBase64String(bytes);

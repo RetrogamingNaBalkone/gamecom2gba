@@ -8,15 +8,9 @@ internal static class Program
     {
         using (Stream runtime = Assembly.GetExecutingAssembly().GetManifestResourceStream("runtime"))
             runtime.CopyTo(destination);
-        var screen = new byte[160, 240];
-        for (int y = 0; y < 160; y++)
-            for (int x = 0; x < 200; x++)
-                screen[y, x+20] = Tiles.Pixel(cart, 0x25, x, y);
-        Bezel.Draw(screen);
         using (var output = new BinaryWriter(destination))
         {
             Tiles.Palette(output, 0, 0xdfff8f, 0x6f8f4f, 0x0f4f2f, 0, 0xb3b4af, 0x292a2a);
-            Tiles.Write(output, screen);
             Duke.WriteOpening(cart, output, bonusFlags);
         }
     }

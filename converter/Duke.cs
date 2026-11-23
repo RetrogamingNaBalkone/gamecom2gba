@@ -74,16 +74,19 @@ internal static class Duke
         const int levels=15;
         output.Write(levels);
         for (int level=0; level<levels; level++) output.Write(0);
-        output.Write(4*(levels+7));
+        output.Write(4*(levels+9));
         output.Write(0);
         output.Write(0);
         output.Write(0);
         output.Write(bonusFlags);
         output.Write(0);
+        output.Write(0); // opening timeline
+        output.Write(0); // sound directory
         var backgrounds=new BackgroundAtlas();
         var sprites=new TileAtlas();
         for (int level=0; level<levels; level++) Intermission.Write(cart,output,backgrounds,level);
         Intermission.WriteRetry(cart,output,backgrounds);
+        Intermission.WriteExitEmblems(cart,output,backgrounds);
         for (int level=0; level<levels; level++) {
             WriteOffset(output,campaign,level);
             WriteRooms(cart,output,level,backgrounds,sprites);
@@ -92,6 +95,10 @@ internal static class Duke
         new Actors(cart,sprites).Write(output);
         WriteOffset(output,campaign,levels+2);
         sprites.WriteSprites(output,backgrounds);
+        WriteOffset(output,campaign,levels+6);
+        Opening.Write(cart,output,backgrounds);
+        WriteOffset(output,campaign,levels+7);
+        DukeAudio.Write(cart,output);
         WriteOffset(output,campaign,levels+1);
         backgrounds.Write(output);
         WriteOffset(output,campaign,levels+5);
@@ -100,8 +107,13 @@ internal static class Duke
 
     static void WriteOffset(BinaryWriter output,long start,int index)
     {
+        WriteDirectoryEntry(output,start,index+1);
+    }
+
+    internal static void WriteDirectoryEntry(BinaryWriter output,long start,int index)
+    {
         long position=output.BaseStream.Position;
-        output.BaseStream.Position=start+4*(index+1);
+        output.BaseStream.Position=start+4*index;
         output.Write((uint)(position-start));
         output.BaseStream.Position=position;
     }
@@ -136,6 +148,21 @@ internal static class Duke
                 char letter=cart[p]==0 ? ' ' : (char)cart[p++];
                 for (int row=0;row<7;row++) output.Write((byte)Intermission.GlyphRow(letter,row));
             }
+        }
+        // OBJ tiles for the pickup notice displayed by 21:6E29, one row per item.
+        for (int type=1;type<=9;type++) {
+            int messageSlot=0x21*8192+0xe66+2*(type-1);
+            int p=0x21*8192+((cart[messageSlot]*256+cart[messageSlot+1])&8191);
+            int length=cart[p++];
+            for (int col=0;col<20;col++) {
+                var glyph=new byte[8,8];
+                if (col<length) for (int row=0;row<8;row++) {
+                    int bits=row<7 ? Intermission.GlyphRow((char)cart[p+col],row) : 0;
+                    for (int x=0;x<8;x++) glyph[row,x]=(byte)((bits&(32>>x))!=0 ? 1 : 4);
+                }
+                Tiles.Write(output,glyph);
+            }
+            output.Write(length);
         }
         var frames=new System.Collections.Generic.Dictionary<int,int>();
         int table=0x21*8192+(0x712b&8191);

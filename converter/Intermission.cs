@@ -16,11 +16,13 @@ internal static class Intermission
     {
         if (letter==' ') return 0;
         if (letter=='.') return row==6 ? 4 : 0;
+        if (letter=='\'') return row<2 ? 4 : 0;
+        if (letter=='-') return row==3 ? 14 : 0;
         if (letter=='0') return row==0 || row==6 ? 14 : 17;
         return System.Convert.ToInt32(Font[letter-'A'].Substring(2*row,2),16);
     }
 
-    static void Text(byte[,] scene,string text,int top,int scale,byte color)
+    internal static void Text(byte[,] scene,string text,int top,int scale,byte color)
     {
         int left=20+(200-(6*text.Length-1)*scale)/2;
         foreach (char c in text) {
@@ -74,5 +76,20 @@ internal static class Intermission
         Text(scene,"AHH THEY GOT YOU",64,1,1);
         Text(scene,"A  RESTART SAME LEVEL",96,1,1);
         output.Write(backgrounds.AddLayer(scene,160));
+    }
+
+    internal static void WriteExitEmblems(byte[] cart,BinaryWriter output,BackgroundAtlas backgrounds)
+    {
+        foreach (int page in new int[]{0x3b,0x3a}) {
+            int width=page==0x3b ? 123 : 138,height=page==0x3b ? 122 : 137;
+            var scene=new byte[160,240];
+            Bezel.Draw(scene);
+            for (int y=0;y<160;y++) for (int x=20;x<220;x++) scene[y,x]=4;
+            for (int y=0;y<height;y++) for (int x=0;x<width;x++) {
+                int pixel=Tiles.Pixel(cart,page,x,y)-1;
+                scene[(160-height)/2+y,(240-width)/2+x]=(byte)(1+((0xd0>>(2*pixel))&3));
+            }
+            output.Write(backgrounds.AddLayer(scene,160));
+        }
     }
 }
