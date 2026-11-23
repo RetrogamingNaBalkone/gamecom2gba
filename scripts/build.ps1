@@ -23,7 +23,7 @@ try {
     Run $zig @('cc','-target','arm-freestanding-eabi','-mcpu=arm7tdmi','-c',"$root/gba/start.S",'-o',"$stage/start.o")
     Run $zig @('cc','-target','thumb-freestanding-eabi','-mcpu=arm7tdmi','-Oz','-ffreestanding','-fno-unwind-tables','-fno-exceptions','-Wall','-Werror','-c',"$root/gba/duke.c",'-o',"$stage/duke.o")
     Run $zig @('ld.lld','--oformat=binary','-T',"$root/gba/rom.ld","$stage/start.o","$stage/duke.o",'-o',"$stage/runtime.bin")
-    Run $fix @("$stage/runtime.bin",'-tDUKE PREVIEW','-cGDUP','-m00')
+    Run $fix @("$stage/runtime.bin",'-tDUKE-GAMECOM','-cGDUP','-m00')
     $sources = @(Get-ChildItem "$root/converter/*.cs" | ForEach-Object FullName)
     $executable = 'gamecom2gba.exe'
     $stagedExe = Join-Path $stage $executable

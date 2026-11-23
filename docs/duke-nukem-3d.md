@@ -44,7 +44,7 @@ While paused, **A, L, B, L, Select, Select** gives you a key and 100 armor. Rele
 | Pause secret | The key-and-armor code ends with two touches in the lower-right corner. | The code ends with two separate **Select** presses. |
 | Bonus maps | A fresh system record takes the 12-map route. Three flags control access to the additional maps. | The converter builds both routes. In the 15-map build, regular exits lead through all 15 maps and Launching Facility sits between Toxic Dump and Abyss. |
 | Passwords | The game.com system memory stores the checkpoint. The original password screen submits with **C**. | The GBA save stores the checkpoint and the current password. The password is also visible while paused. Submit it with **Start** or **R**. |
-| Sound | Two music voices and sampled effects run through the cartridge's sound driver. | The port plays cartridge music and samples through GBA audio hardware. Gunfire can play over Duke's speech. Music runs at about 20.8 ms per duration unit, compared with about 24.9 ms on the original. |
+| Sound | Two music voices and sampled effects run through the cartridge's sound driver. In episode 2, the second voice reads into episode 3's score before the shared repeat. | The port keeps the cartridge's 25 ms music duration unit and ends each voice at its score boundary. The second voice in episode 2 rests until both voices restart together. Gunfire can play over Duke's speech. |
 
 The original control and password instructions are in the [Tiger game.com manual](https://messui.polygonal-moogle.com/mess/gcom_dukenukem.pdf). The [original cartridge notes](duke-nukem-3d-original-assets.md) describe the bonus maps and sound samples in more detail.
 

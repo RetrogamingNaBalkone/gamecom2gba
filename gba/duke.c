@@ -948,9 +948,10 @@ static const uint8_t *sound_data(unsigned id) {
     return (const uint8_t *)audio.directory+audio.directory[id];
 }
 
-/* 4.9152 MHz source, timer period 208, one DAC sample per three interrupts.
-   Score timing is independent of PCM playback and pitch. */
-enum { PCM_DIVISOR=2130, MUSIC_UNIT=341 };
+/* 4.9152 MHz source, timer period 208, one DAC sample per three interrupts. */
+enum { PCM_DIVISOR=2130 };
+/* 25 ms is exactly 2048 fifths of a Timer 2 tick. */
+enum { MUSIC_TICK_SCALE=5, MUSIC_UNIT=2048 };
 enum { TITLE_SCORE=27, EPISODE_SCORE=29, DEATH_SCORE=35 };
 
 static void stop_sample(unsigned voice) {
@@ -1023,9 +1024,10 @@ static void stop_music(void) {
 
 static void music_tick(unsigned ticks) {
     if (!audio.notes[0]) return;
+    ticks*=MUSIC_TICK_SCALE;
     for (;;) {
-        /* The first voice sets the repeat point for the whole score. The
-           second voice can run into the next score's data before that point. */
+        /* The first voice sets the shared repeat point. A voice that ends
+           early stays silent until then. */
         if (!audio.remaining[0] && !audio.notes[0][3]) {
             for (unsigned i=0;i<2;i++) {
                 audio.notes[i]=audio.track[i];

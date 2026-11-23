@@ -557,6 +557,10 @@ def check_episode_openings(core,rom,cart):
         render(core,bytes(image),start=True,episode=episode,final_frame=last_frame,
                audio_samples=pcm,audio_start=0)
         return pcm
+    def audible_frames(pcm,muted):
+        return [frame for frame in pcm if
+                max(abs(a-b) for a,b in zip(memoryview(pcm[frame]).cast("h"),
+                                           memoryview(muted[frame]).cast("h")))>128]
 
     no_speech=bytearray(rom)
     speech=entry(17)
@@ -572,10 +576,15 @@ def check_episode_openings(core,rom,cart):
                 packed=cart[(0x27-episode)*16384+64*x+y//4]
                 assert pixels[240*y+20+x]==colors[(packed>>(6-2*(y%4)))&3],(episode,x,y)
 
-    # Replace only the start of the episode 2 score. Its second voice has a
-    # note beyond the first voice's repeat point, which must never play.
-    score=bytearray(rom)
     first,second=entry(31),entry(32)
+    score_bank=0x2b*8192
+    second_source=range(score_bank+0x04b9,score_bank+0x0654,3)
+    assert entry(33)==second+4*(len(second_source)+1)
+    assert [rom[second+4*i+3] for i in range(len(second_source))]==[cart[p+2] for p in second_source]
+    assert word(entry(33)-4)==0, "episode 2's second voice must end before episode 3"
+
+    # A long second voice may never play past the first voice's repeat.
+    score=bytearray(rom)
     struct.pack_into("<HBBI",score,first,1750,31,32,0)
     struct.pack_into("<HBBHBBHBBI",score,second,1580,31,8,1620,31,28,1710,31,16,0)
     alternate=bytearray(score)
@@ -589,13 +598,19 @@ def check_episode_openings(core,rom,cart):
     score[second+2]=score[second+6]=score[second+10]=0
     quiet=bytearray(score)
     quiet[first+6]=0
-    pcm=listen(score,1,75)
-    muted=listen(quiet,1,75)
-    audible=[frame for frame in pcm if
-             max(abs(a-b) for a,b in zip(memoryview(pcm[frame]).cast("h"),
-                                         memoryview(muted[frame]).cast("h")))>128]
+    audible=audible_frames(listen(score,1,75),listen(quiet,1,75))
     assert 11<=len(audible)<=16 and audible[-1]<75,audible
-    print("mGBA verified episode art, the opening line, shared repeats and note decay.")
+
+    # The pulse repeats every 32 units, or 800 ms (about 48 display frames).
+    # Give the second voice an early end, then listen for it at each restart.
+    struct.pack_into("<HBBI",score,first,0,0,32,0)
+    struct.pack_into("<HBBI",score,second,1580,31,2,0)
+    quiet=bytearray(score)
+    quiet[second+2]=0
+    audible=audible_frames(listen(score,1,230),listen(quiet,1,230))
+    pulses=[frame for i,frame in enumerate(audible) if i==0 or frame>audible[i-1]+1]
+    assert len(pulses)>=4 and all(47<=b-a<=49 for a,b in zip(pulses[1:],pulses[2:])),pulses
+    print("mGBA verified episode art, the opening line, score bounds, 25 ms music units, shared repeats and note decay.")
 
 
 def check_stage_card(pixels,rom,entering_stage):
