@@ -25,12 +25,14 @@ try {
     Run $zig @('ld.lld','--oformat=binary','-T',"$root/gba/rom.ld","$stage/start.o","$stage/duke.o",'-o',"$stage/runtime.bin")
     Run $fix @("$stage/runtime.bin",'-tDUKE PREVIEW','-cGDUP','-m00')
     $sources = @(Get-ChildItem "$root/converter/*.cs" | ForEach-Object FullName)
-    Run $csc (@('/nologo','/optimize+','/reference:System.IO.Compression.dll',"/resource:$stage/runtime.bin,runtime","/out:$stage/gamecom-gba.exe") + $sources)
-    $target = "$dist/gamecom-gba.exe"
+    $executable = 'gamecom2gba.exe'
+    $stagedExe = Join-Path $stage $executable
+    Run $csc (@('/nologo','/optimize+','/reference:System.IO.Compression.dll',"/resource:$stage/runtime.bin,runtime","/out:$stagedExe") + $sources)
+    $target = Join-Path $dist $executable
     if ([IO.File]::Exists($target)) {
         $backup = "$stage/previous.exe"
-        [IO.File]::Replace("$stage/gamecom-gba.exe", $target, $backup)
-    } else { [IO.File]::Move("$stage/gamecom-gba.exe", $target) }
+        [IO.File]::Replace($stagedExe, $target, $backup)
+    } else { [IO.File]::Move($stagedExe, $target) }
     Write-Output $target
 } finally {
     $env:ZIG_GLOBAL_CACHE_DIR = $previousCache

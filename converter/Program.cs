@@ -4,15 +4,13 @@ using System.Reflection;
 
 internal static class Program
 {
-    static void WritePreview(byte[] cart, Stream destination, int bonusFlags)
+    static long BuildDuke(byte[] cart, MemoryStream rom)
     {
         using (Stream runtime = Assembly.GetExecutingAssembly().GetManifestResourceStream("runtime"))
-            runtime.CopyTo(destination);
-        using (var output = new BinaryWriter(destination))
-        {
-            Tiles.Palette(output, 0, 0xdfff8f, 0x6f8f4f, 0x0f4f2f, 0, 0xb3b4af, 0x292a2a);
-            Duke.WriteOpening(cart, output, bonusFlags);
-        }
+            runtime.CopyTo(rom);
+        var output = new BinaryWriter(rom);
+        Tiles.Palette(output, 0, 0xdfff8f, 0x6f8f4f, 0x0f4f2f, 0, 0xb3b4af, 0x292a2a);
+        return Duke.WriteOpening(cart, output);
     }
 
     static void Publish(string temporary,string path)
@@ -35,34 +33,47 @@ internal static class Program
 
     static int Main(string[] args)
     {
-        if (!(args.Length == 2 || (args.Length == 4 && args[2] == "--bonus-record"))
-            || !args[1].EndsWith(".gba", StringComparison.OrdinalIgnoreCase))
+        if (args.Length != 1)
         {
-            Console.Error.WriteLine("Usage: gamecom-gba INPUT.zip|INPUT.tgc|INPUT.bin OUTPUT.gba [--bonus-record DUKE_RECORD.bin]");
+            Console.Error.WriteLine("Usage: gamecom2gba INPUT.zip|INPUT.tgc|INPUT.bin");
+            Console.Error.WriteLine("Creates duke3d-12-maps.gba and duke3d-15-maps.gba next to the executable.");
             return 2;
         }
-        string temporary = null;
+        var directory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        var standard = Path.Combine(directory, "duke3d-12-maps.gba");
+        var extended = Path.Combine(directory, "duke3d-15-maps.gba");
+        string suffix = "." + Guid.NewGuid().ToString("N") + ".tmp";
+        var standardTemp = standard + suffix;
+        var extendedTemp = extended + suffix;
         try
         {
-            var cart = Cartridge.Open(args[0]);
-            var path = Path.GetFullPath(args[1]);
-            if (String.Equals(path, Path.GetFullPath(args[0]), StringComparison.OrdinalIgnoreCase))
+            var input = Path.GetFullPath(args[0]);
+            if (String.Equals(input, standard, StringComparison.OrdinalIgnoreCase) ||
+                String.Equals(input, extended, StringComparison.OrdinalIgnoreCase))
                 throw new IOException("Input and output must be different files.");
-            int bonusFlags=0;
-            if (args.Length==4) {
-                if (String.Equals(path,Path.GetFullPath(args[3]),StringComparison.OrdinalIgnoreCase))
-                    throw new IOException("Bonus record and output must be different files.");
-                bonusFlags=Duke.ReadBonusFlags(cart,args[3]);
+            var cart = Cartridge.Open(input);
+            using (var rom = new MemoryStream())
+            {
+                long bonusFlagsOffset = BuildDuke(cart, rom);
+                using (var file = new FileStream(standardTemp, FileMode.CreateNew, FileAccess.Write))
+                    rom.WriteTo(file);
+                // The campaign header stores the mask as a little-endian word.
+                rom.Position = bonusFlagsOffset;
+                rom.WriteByte(0x07);
+                using (var file = new FileStream(extendedTemp, FileMode.CreateNew, FileAccess.Write))
+                    rom.WriteTo(file);
             }
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
-            temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            using (var file = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write))
-                WritePreview(cart, file, bonusFlags);
-            Publish(temporary,path);
-            Console.WriteLine("Duke graphics preview: " + path);
+            Publish(standardTemp, standard);
+            Publish(extendedTemp, extended);
+            Console.WriteLine(standard);
+            Console.WriteLine(extended);
             return 0;
         }
         catch (Exception e) { Console.Error.WriteLine(e.Message); return 1; }
-        finally { if (temporary != null && File.Exists(temporary)) File.Delete(temporary); }
+        finally
+        {
+            try { File.Delete(standardTemp); }
+            finally { File.Delete(extendedTemp); }
+        }
     }
 }

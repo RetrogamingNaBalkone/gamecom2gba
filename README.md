@@ -1,4 +1,4 @@
-# game.com → GBA
+# gamecom2gba
 
 Native Game Boy Advance ports of Tiger game.com games. The converter builds each supported game from your own cartridge dump.
 
@@ -27,7 +27,7 @@ The Duke player guide covers ROM conversion, controls, passwords, and difference
 .\scripts\test-reference.ps1
 ```
 
-The build uses Zig 0.13.0, `gbafix`, and the Windows .NET Framework C# compiler. The build script accepts `-ZigExe` and `-GbaFix` and also searches PATH and the per-user tools directory under `%LOCALAPPDATA%\Programs`. It produces the standalone Windows converter at `dist/gamecom-gba.exe`. [devkitPro gbafix source](https://github.com/devkitPro/gba-tools/blob/master/src/gbafix.c)
+The build uses Zig 0.13.0, `gbafix`, and the Windows .NET Framework C# compiler. The build script accepts `-ZigExe` and `-GbaFix` and also searches PATH and the per-user tools directory under `%LOCALAPPDATA%\Programs`. It produces the standalone Windows converter at `dist/gamecom2gba.exe`. [devkitPro gbafix source](https://github.com/devkitPro/gba-tools/blob/master/src/gbafix.c)
 
 | Supported cartridge | Unpacked size | SHA-256 |
 |---|---:|---|

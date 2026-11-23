@@ -27,31 +27,7 @@ internal static class Duke
         Draw(cart, screen, 20+x, y, cart[p+4], cart[p+2], cart[p+3], cart[p], cart[p+1], transparent);
     }
 
-    internal static int ReadBonusFlags(byte[] cart,string path)
-    {
-        using (var input=File.OpenRead(path)) {
-            if (input.Length!=0x2b && input.Length!=0x2000)
-                throw new InvalidDataException("Expected a 43-byte Duke record or an 8192-byte game.com NVRAM dump.");
-            byte[] bytes;
-            using (var reader=new BinaryReader(input)) bytes=reader.ReadBytes((int)input.Length);
-            // The cartridge initializes the name and record version at 21:6F18.
-            int record=-1;
-            for (int p=0;p<=bytes.Length-0x2b;p++) {
-                int i=0;
-                while (i<12 && bytes[p+i]==cart[0x21*8192+(0x6f18&8191)+i]) i++;
-                if (i!=12) continue;
-                if (record>=0) throw new InvalidDataException("Multiple Duke records in NVRAM.");
-                record=p;
-            }
-            if (record<0) throw new InvalidDataException("Duke system record not found.");
-            int tag=bytes[record+0x15], flags=bytes[record+0x16];
-            if (((tag+flags)&255)!=bytes[record+0x17])
-                throw new InvalidDataException("Invalid bonus record checksum.");
-            return flags&7;
-        }
-    }
-
-    internal static void WriteOpening(byte[] cart, BinaryWriter output,int bonusFlags)
+    internal static long WriteOpening(byte[] cart, BinaryWriter output)
     {
         var screen = new byte[160,240];
         Bezel.Draw(screen);
@@ -78,7 +54,8 @@ internal static class Duke
         output.Write(0);
         output.Write(0);
         output.Write(0);
-        output.Write(bonusFlags);
+        long bonusFlagsOffset=output.BaseStream.Position;
+        output.Write(0); // bonus map access mask
         output.Write(0);
         output.Write(0); // opening timeline
         output.Write(0); // sound directory
@@ -103,6 +80,7 @@ internal static class Duke
         backgrounds.Write(output);
         WriteOffset(output,campaign,levels+5);
         WriteWeapons(cart,output);
+        return bonusFlagsOffset;
     }
 
     static void WriteOffset(BinaryWriter output,long start,int index)

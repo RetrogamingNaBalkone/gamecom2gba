@@ -7,16 +7,15 @@ This in-development port of Tiger's game.com cartridge runs natively on GBA. It 
 From the repository root on Windows, run the converter with your own **Duke Nukem 3D (USA)** cartridge dump. It accepts a ZIP or a raw ROM and checks the cartridge revision before converting it. The cartridge alone is enough.
 
 ```powershell
-.\dist\gamecom-gba.exe ".\originals\Duke Nukem 3D (USA).zip" ".\dist\duke3d-preview.gba"
+.\dist\gamecom2gba.exe ".\originals\Duke Nukem 3D (USA).zip"
 ```
 
-If you are starting from a source checkout, [build the converter first](../README.md#development). Open the resulting `.gba` file in a GBA emulator such as mGBA.
+If you are starting from a source checkout, [build the converter first](../README.md#development). The converter writes both files next to `gamecom2gba.exe` and prints their full paths.
 
-The default build follows the original's 12-map route. To carry over bonus-map access, add the following argument after the output filename. The converter accepts an 8,192-byte game.com NVRAM dump or an extracted 43-byte Duke system record. A record with all three bonus flags set enables the full 15-map campaign. [Bonus maps and routes](duke-nukem-3d-original-assets.md#bonus-maps)
+- `duke3d-12-maps.gba` follows the original campaign route with a fresh system record.
+- `duke3d-15-maps.gba` includes all three bonus maps in the campaign route.
 
-```text
---bonus-record ".\originals\gamecom.nv"
-```
+Open either `.gba` file in a GBA emulator such as mGBA. [Bonus maps and routes](duke-nukem-3d-original-assets.md#bonus-maps)
 
 ## Play
 
@@ -43,7 +42,7 @@ While paused, **A, L, B, L, Select, Select** gives you a key and 100 armor. Rele
 | Display | 200 × 160 LCD | The original playfield stays at 200 × 160, centered on the 240 × 160 screen. The side panels carry the game.com and Tiger logos. GBA background layers and sprites draw the scene. |
 | Doors and combat | Four face buttons handle the three attack directions and weapon cycling. Up plus **D** operates doors. | **A** operates doors by itself. **B** attacks forward and the shoulder buttons handle side attacks. |
 | Pause secret | The key-and-armor code ends with two touches in the lower-right corner. | The code ends with two separate **Select** presses. |
-| Bonus maps | A fresh system record takes the 12-map route. Three flags control access to the additional maps. | The default build takes the 12-map route. With all three flags imported, regular exits lead through all 15 maps. Launching Facility moves between Toxic Dump and Abyss in that build. |
+| Bonus maps | A fresh system record takes the 12-map route. Three flags control access to the additional maps. | The converter builds both routes. In the 15-map build, regular exits lead through all 15 maps and Launching Facility sits between Toxic Dump and Abyss. |
 | Passwords | The game.com system memory stores the checkpoint. The original password screen submits with **C**. | The GBA save stores the checkpoint and the current password. The password is also visible while paused. Submit it with **Start** or **R**. |
 | Sound | Two music voices and sampled effects run through the cartridge's sound driver. | The port plays cartridge music and samples through GBA audio hardware. Gunfire can play over Duke's speech. Music runs at about 20.8 ms per duration unit, compared with about 24.9 ms on the original. |
 

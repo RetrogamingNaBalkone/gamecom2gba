@@ -12,7 +12,7 @@ A fresh game.com system record plays four maps per episode and loops back to Hol
 | Lunar Apocalypse | Lunatic Fringe | `0x25` | `0x02` | Raw Meat | Raw Meat |
 | Shrapnel City | Freeway | `0x35` | `0x01` | Hollywood Holocaust | Hollywood Holocaust |
 
-In the GBA build with all three flags set, the affected stretches are **Toxic Dump → Launching Facility → Abyss → Space Port**, **The Dark Side → Lunatic Fringe → Raw Meat**, and **Hotel Hell → Freeway → Hollywood Holocaust**. The converter imports the access flags at build time. [Port build instructions](duke-nukem-3d.md#build-a-playable-rom)
+In the 15-map GBA build, the affected stretches are **Toxic Dump → Launching Facility → Abyss → Space Port**, **The Dark Side → Lunatic Fringe → Raw Meat**, and **Hotel Hell → Freeway → Hollywood Holocaust**. The converter sets all three access flags for that build. [Port build instructions](duke-nukem-3d.md#build-a-playable-rom)
 
 ### Play the maps in the original game
 
@@ -27,7 +27,7 @@ In the GBA build with all three flags set, the affected stretches are **Toxic Du
 
 The original cartridge was played from each prepared password through the regular exit in Tigerbyte, with normal movement and combat. The reference routes recorded 48 frags on Launching Facility, 17 on Lunatic Fringe, and 11 on Freeway. [Checkpoint tool](../scripts/bonus_checkpoint.py) · [Reference replays](../scripts/test_preview.py)
 
-The cartridge's map and room pointer tables are in bank `27`. The original exit and bonus-flag logic is at `21:6A18` and `23:62B0`. The GBA converter reads and validates the Duke system record and copies its low three access bits. [Ghidra labels](../analysis/ghidra/DukeMenu.java) · [Converter](../converter/Duke.cs)
+The cartridge's map and room pointer tables are in bank `27`. The original exit and bonus-flag logic is at `21:6A18` and `23:62B0`. [Ghidra labels](../analysis/ghidra/DukeMenu.java)
 
 ## Digitized sound samples
 

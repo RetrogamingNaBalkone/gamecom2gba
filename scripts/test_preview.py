@@ -6,6 +6,7 @@ import hashlib
 import itertools
 import os
 from pathlib import Path
+import shutil
 import struct
 import subprocess
 import sys
@@ -617,7 +618,6 @@ def main():
                              .glob("libretro-*/mgba_libretro.dll"))
     with zipfile.ZipFile(args.cartridge) as archive:
         data = archive.read(next(i for i in archive.infolist() if i.file_size == 2097152))
-    exe = ROOT / "dist/gamecom-gba.exe"
     reference_frames = {}
     # Number of weapon switches after granting the arsenal, SM8500 art
     # descriptor, duration of held fire in the reference, GBA shot age.
@@ -626,15 +626,21 @@ def main():
     reference_weapons={}
     with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
         work = Path(tmp)
-        output = work / "output.gba"
+        converter_dir = work / "converter"
+        converter_dir.mkdir()
+        exe = Path(shutil.copy2(ROOT / "dist/gamecom2gba.exe", converter_dir))
+        outputs = [converter_dir / f"duke3d-{count}-maps.gba" for count in (12, 15)]
         raw = work / "renamed.bin"
         raw.write_bytes(data)
-        for source in (args.cartridge.resolve(), raw):
-            subprocess.run([exe, source, output], cwd=work, check=True)
-            if source != raw:
-                expected = output.read_bytes()
-            else:
-                assert expected == output.read_bytes()
+        result = subprocess.run([exe, args.cartridge.resolve()], cwd=work, check=True,
+                                capture_output=True, text=True)
+        assert result.stdout.splitlines() == [str(path) for path in outputs]
+        expected, extended = (path.read_bytes() for path in outputs)
+        flags = campaign_offset(expected) + 4 * (15 + 5)
+        assert expected[flags:flags+4] == bytes(4)
+        assert extended == expected[:flags] + b"\x07" + expected[flags+1:]
+        subprocess.run([exe, raw.name], cwd=work, check=True)
+        assert [p.read_bytes() for p in outputs] == [expected, extended]
         # Compare every card with the lossless, pre-optimization graphics.
         cards=hashlib.sha256()
         for card in range(46):
@@ -646,31 +652,16 @@ def main():
                     cards.update(tiles[off+(2 if tx==2 else 0):off+(2 if tx==27 else 4)])
         assert cards.hexdigest()=="ea52b33d2cc22130e1ff09da5608cf2625a9eaad1a331c318f14522ebe35d113"
         raw.write_bytes(data[:-1] + bytes([data[-1] ^ 1]))
-        assert subprocess.run([exe, raw, output], cwd=work).returncode == 1
-        assert expected == output.read_bytes()
+        assert subprocess.run([exe, raw], cwd=work).returncode == 1
+        assert [p.read_bytes() for p in outputs] == [expected, extended]
         unrelated = work / "other.zip"
         with zipfile.ZipFile(unrelated, "w") as archive:
             archive.writestr("Duke Nukem 3D (USA).tgc", b"unrecognized cartridge")
-        assert subprocess.run([exe, unrelated, output], cwd=work).returncode == 1
-        assert expected == output.read_bytes()
+        assert subprocess.run([exe, unrelated], cwd=work).returncode == 1
+        assert [p.read_bytes() for p in outputs] == [expected, extended]
         unrelated.unlink()
-        assert sorted(p.name for p in work.iterdir()) == ["output.gba", "renamed.bin"]
-        # First 24 bytes come from the cartridge's system record initializer.
-        record=bytearray(data[0x21*8192+0xf18:0x21*8192+0xf30])+bytearray([255])*19
-        bonus_file=work/"duke-record.bin"
-        record[0x15:0x18]=bytes((250,7,1))
-        bonus_file.write_bytes(record)
-        convert_bonus=[exe,args.cartridge.resolve(),output,"--bonus-record",bonus_file]
-        subprocess.run(convert_bonus,cwd=work,check=True)
-        extended=output.read_bytes()
-        nvram=bytearray(8192)
-        nvram[0x1c63:0x1c63+43]=record
-        bonus_file.write_bytes(nvram)
-        subprocess.run(convert_bonus,cwd=work,check=True)
-        assert extended==output.read_bytes() and extended!=expected
-        record[0x17]^=1
-        bonus_file.write_bytes(record)
-        assert subprocess.run(convert_bonus,cwd=work).returncode==1 and output.read_bytes()==extended
+        assert set(work.iterdir()) == {converter_dir, raw}
+        assert set(converter_dir.iterdir()) == {exe, *outputs}
         if args.reference:
             raw.write_bytes(data)
             bios = []
@@ -696,6 +687,7 @@ def main():
             subprocess.run(original,input="\n".join(tape[:3]).encode(),capture_output=True,check=True,
                            env=dict(os.environ,GAMECOM_SAVE_NVRAM=str(snapshot)))
             system=bytearray(snapshot.read_bytes())
+            record=data[0x21*8192+0xf18:0x21*8192+0xf30]
             start=system.index(record[:12])
             assert system[start:start+21]==record[:21] and system[start+21:start+24]==bytes(3)
             verify_bonus_passwords(original,tape,snapshot,work)
@@ -707,8 +699,6 @@ def main():
                                                GAMECOM_LOAD_NVRAM_FRAME="3608",GAMECOM_TRACE_STATE="1"))
                 state=next(row for row in result.stderr.splitlines() if row.startswith(b"d0:"))
                 assert int(state.split()[12],16)==register, state
-            subprocess.run([exe,raw,output,"--bonus-record",snapshot],check=True,cwd=work)
-            assert output.read_bytes()==extended
             system[start+21:start+24]=bytes((0,32,32))
             snapshot.write_bytes(system)
             for switches,descriptor,duration,_ in weapon_samples:
