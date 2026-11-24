@@ -10,12 +10,12 @@ From the repository root on Windows, run the converter with your own **Duke Nuke
 .\dist\gamecom2gba.exe ".\originals\Duke Nukem 3D (USA).zip"
 ```
 
-If you are starting from a source checkout, [build the converter first](../README.md#development). The converter writes both files next to `gamecom2gba.exe` and prints their full paths.
+If you are starting from a source checkout, [build the converter first](duke-nukem-3d-development.md#build-the-converter-on-windows). The converter writes both files next to `gamecom2gba.exe` and prints their full paths.
 
 - `duke3d-12-maps.gba` follows the original campaign route with a fresh system record.
 - `duke3d-15-maps.gba` includes all three bonus maps in the campaign route.
 
-Open either `.gba` file in a GBA emulator such as mGBA. [Bonus maps and routes](duke-nukem-3d-original-assets.md#bonus-maps)
+Copy either `.gba` file to a flash cart for a real GBA, or open it in an emulator such as mGBA. [Bonus maps and routes](duke-nukem-3d-original-assets.md#bonus-maps)
 
 ## Play
 
@@ -46,6 +46,6 @@ While paused, **A, L, B, L, Select, Select** gives you a key and 100 armor. Rele
 | Passwords | The game.com system memory stores the checkpoint. The original password screen submits with **C**. | The GBA save stores the checkpoint and the current password. The password is also visible while paused. Submit it with **Start** or **R**. |
 | Sound | Two music voices and sampled effects run through the cartridge's sound driver. In episode 2, the second voice reads into episode 3's score before the shared repeat. | The port keeps the cartridge's 25 ms music duration unit and ends each voice at its score boundary. The second voice in episode 2 rests until both voices restart together. Gunfire can play over Duke's speech. |
 
-The original control and password instructions are in the [Tiger game.com manual](https://messui.polygonal-moogle.com/mess/gcom_dukenukem.pdf). The [original cartridge notes](duke-nukem-3d-original-assets.md) describe the bonus maps and sound samples in more detail.
+The original control and password instructions are in the [Tiger game.com manual](https://messui.polygonal-moogle.com/mess/gcom_dukenukem.pdf). The [original cartridge notes](duke-nukem-3d-original-assets.md) describe the bonus maps and sound samples in more detail. The [development notes](duke-nukem-3d-development.md) cover building, tests, rendering, and the Ghidra research.
 
-Both campaign routes have been exercised in mGBA. Timing and playability on physical GBA hardware remain to be verified. Continuing with a password on a fresh GBA save is still open.
+Both campaign routes have been exercised in mGBA, and the port has been played on real GBA hardware. Continuing with a password on a fresh GBA save is still open.
