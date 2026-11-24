@@ -2,6 +2,8 @@
 
 Play Tiger game.com games on the Game Boy Advance.
 
+![Duke Nukem 3D running on the GBA](docs/images/duke-nukem-3d.jpg)
+
 gamecom2gba turns your own game.com cartridge dump into a native GBA ROM. This is not an emulator: each game is rebuilt for the GBA, so it runs at full speed on a real console, a flash cart, or any GBA emulator. The original picture keeps its 200 × 160 size, framed by side panels in the colors of the game.com case.
 
 No game data is included. You supply the ROM, and the converter checks that it is a supported cartridge before it does anything.
