@@ -360,6 +360,67 @@ struct Inventory {
 _Static_assert(sizeof(struct Enemy)==24 && sizeof(struct Encounter)==456 &&
                sizeof(struct Weapon)==24 && sizeof(struct Inventory)==24,"IWRAM layout");
 
+/* Redrawn lettering for the two-line game.com system dialog. Each glyph
+   occupies an 8x16 cell with nine ink rows starting on the fourth row. */
+static const char pause_letters[]="Pre sAUSEtocniu";
+static const uint8_t pause_font[][9]={
+    {126,65,65,65,126,64,64,64,64}, /* P */
+    {0,0,0,92,98,64,64,64,64},      /* r */
+    {0,0,0,60,66,126,64,66,60},     /* e */
+    {0},
+    {0,0,0,60,66,48,12,66,60},      /* s */
+    {8,20,34,65,65,127,65,65,65},   /* A */
+    {65,65,65,65,65,65,65,34,28},   /* U */
+    {62,65,64,64,62,1,1,65,62},     /* S */
+    {127,64,64,64,124,64,64,64,127},/* E */
+    {0,16,16,124,16,16,16,18,12},   /* t */
+    {0,0,0,60,66,66,66,66,60},      /* o */
+    {0,0,0,60,66,64,64,66,60},      /* c */
+    {0,0,0,92,98,66,66,66,66},      /* n */
+    {0,8,0,24,8,8,8,8,62},          /* i */
+    {0,0,0,66,66,66,66,70,58}       /* u */
+};
+
+static void prepare_pause_dialog(void) {
+    /* BG3 uses the space between scenery tiles and the gameplay maps. */
+    volatile uint32_t *tiles=(volatile uint32_t *)0x0600cc00;
+    volatile uint16_t *map=(volatile uint16_t *)0x0600e000;
+    for (unsigned tile=0;tile<4;tile++) {
+        for (unsigned y=0;y<8;y++) {
+            uint32_t row=tile&1 ? 0x11114444 : 0x11111111;
+            *tiles++=(tile&2) && y<4 ? 0x44444444 : row;
+        }
+    }
+    for (unsigned i=0;i<sizeof pause_font/sizeof *pause_font;i++) {
+        for (unsigned y=0;y<16;y++) {
+            unsigned bits=y>=3 && y<12 ? pause_font[i][y-3] : 0;
+            uint32_t row=0;
+            for (unsigned x=0;x<8;x++)
+                row|=(uint32_t)(bits&(128>>x) ? 4 : 1)<<(4*x);
+            *tiles++=row;
+        }
+    }
+    for (unsigned y=0;y<8;y++) for (unsigned x=0;x<21;x++) {
+        unsigned tile=(x==0 || x==20) + 2*(y==0 || y==7);
+        map[32*y+x]=(96+tile) | (x==20 ? 0x400 : 0) | (y==7 ? 0x800 : 0);
+    }
+    const char *lines[]={"Press PAUSE to","continue"};
+    for (unsigned line=0;line<2;line++) {
+        unsigned at=(2+2*line)*32+(line ? 6 : 3);
+        for (const char *s=lines[line];*s;s++,at++) {
+            unsigned i=0;
+            while (pause_letters[i]!=*s) i++;
+            map[at]=100+2*i;
+            map[at+32]=101+2*i;
+        }
+    }
+    REG16(0x0400000e)=0x1c0c;
+    REG16(0x0400001c)=512-36;
+    REG16(0x0400001e)=512-48;
+    REG16(0x04000042)=(20<<8)|220;
+    REG16(0x04000046)=136;
+}
+
 /* Record six separate button edges while paused, as at 23:6A42.
    The two original lower-right touches map to Select. */
 static void pause_input(uint16_t sequence[6],unsigned *count,unsigned pressed,
@@ -1180,15 +1241,19 @@ static unsigned opening(const struct Atlas *atlas,const uint32_t *opening_data,
         old_keys=keys;
         elapsed+=dt;
         if (!page) {
+            enum { COPYRIGHT=201*274u, COPYRIGHT_VISIBLE=384*274u, DUKE_TITLE=966*274u };
+            unsigned shown=elapsed-dt;
+            int next=pressed&(A|START);
+            if (shown<150*274u && elapsed>=150*274u) sample(PLAYER_FX,11);
+            if (next && shown<COPYRIGHT) elapsed=COPYRIGHT_VISIBLE;
+            else if (next && shown<DUKE_TITLE) elapsed=DUKE_TITLE;
             while (frame+1<count && elapsed>=opening_data[3*(frame+1)]*274u) {
                 frame++;
                 redraw=1;
             }
-            int duke_title=elapsed>=966*274u;
-            if (!audio.notes[0] && duke_title) music(TITLE_SCORE);
-            if (elapsed-dt<150*274u && elapsed>=150*274u) sample(PLAYER_FX,11);
-            if (elapsed>=1635*274u || (duke_title && (pressed&(A|START)))) {
-                page=1;
+            if (!audio.notes[0] && elapsed>=DUKE_TITLE) music(TITLE_SCORE);
+            if (elapsed>=1635*274u || (next && shown>=DUKE_TITLE)) {
+                page=MAIN;
                 if (!audio.notes[0]) music(TITLE_SCORE);
                 redraw=1;
             }
@@ -1358,6 +1423,7 @@ void play(void) {
     REG16(0x04000044)=136;
     REG16(0x04000048)=0x17;
     REG16(0x0400004a)=1;
+    prepare_pause_dialog();
     int show_gameplay=1;
     draw_enemies(&atlas,&encounter,position.lane,position.depth);
     REG16(0x0400010a) = 0x83;
@@ -1486,15 +1552,12 @@ void play(void) {
         }
         if (pressed & START) {
             paused=!paused; pause_count=0;
-            for (unsigned i=0;i<4;i++) {
-                uint16_t *obj=shadow_oam[100+i];
-                obj[0]=paused ? 4 : 0x200;
-                if (paused) {
-                    copy_words(password_tiles+32*passcode[i],0x06010000+32*(352+i),8);
-                    obj[1]=104+8*i;
-                    obj[2]=352+i;
-                }
-            }
+            /* WIN0 clips the dialog over all sprites. WIN1 preserves the
+               gameplay window outside it, including the bezel and HUD. */
+            REG16(0x04000040)=paused ? (36<<8)|204 : (20<<8)|220;
+            REG16(0x04000044)=paused ? (48<<8)|112 : 136;
+            REG16(0x04000048)=paused ? 0x1708 : 0x17;
+            REG16(0x04000000)=paused ? 0x7f40 : 0x3740;
         }
         else if (paused) pause_input(pause_sequence,&pause_count,pressed,&inventory,&w);
         old_keys = keys;

@@ -426,12 +426,20 @@ def check_main_menu(core,rom):
         return hashlib.sha256(lcd).hexdigest()
     for buttons,digest in zip(([3],[3,5],[3,5,5],[3,5,8]),hashes):
         assert lcd_hash(navigate(buttons))==digest,buttons
-    # Tigerbyte LCD after tapping A on the logo and again on the copyright screen.
-    early=[(64,80,8),(394,410,3)]
+    # Uninterrupted opening matches the cartridge.
     for frame,digest in [(984,"c708e445ef8c0eed4ba25236ee448521021e2dace76a689970b7996a2a04aa44"),
+                         (1306,"08500a434dbdbc35c34401de6363c84a1042de60e49c38494b254b5977b02061"),
                          (1450,"60c335463e79569c3314cca6ff4cf50cd03bf475efc9104381b26119838e151a"),
+                         (1533,"ef9b967bd890b39682d96ff3b8554900fe66133d9eb68831903034b4c957f659"),
                          (1650,hashes[0])]:
-        assert lcd_hash(render(core,rom,walk=early,final_frame=frame))==digest,frame
+        assert lcd_hash(render(core,rom,final_frame=frame))==digest,frame
+    copyright_screen=render(core,rom,final_frame=600)
+    for key in (8,3):
+        logo=[(64,84,key)]
+        assert render(core,rom,walk=logo,final_frame=78)==copyright_screen
+        skip=logo+[(100,140,key)]
+        assert lcd_hash(render(core,rom,walk=skip,final_frame=118))=="c708e445ef8c0eed4ba25236ee448521021e2dace76a689970b7996a2a04aa44"
+        assert lcd_hash(render(core,rom,walk=skip+[(150,170,key)],final_frame=167))==hashes[0]
     assert lcd_hash(navigate([8]))==hashes[0]
     quit_tape=[(1000+12*i,1004+12*i,key) for i,key in enumerate([3,5,5,8])]
     assert lcd_hash(render(core,rom,walk=quit_tape+[(2040,2044,3)]))==hashes[0]
@@ -944,6 +952,15 @@ def main():
             wanted="00000" if char==" " else glyphs[int(char)]
             assert hud_glyph(image,x+8*i)==list(map(int,wanted)), (x,number,i)
     paused=[(85,87,3)]
+    before=render(core,expected,start=True,final_frame=84)
+    dialog=render(core,expected,start=True,walk=paused,final_frame=110)
+    # Tigerbyte's 168x64 system dialog in the original LCD shades.
+    shades={27:252,13:126,1:63,0:0}
+    panel=bytes(shades[dialog[240*y+x][0]] for y in range(48,112) for x in range(36,204))
+    assert hashlib.sha256(panel).hexdigest()=="5748cefdce0bf8f0c5135f9e78b86a64dfcdc54a6547dcea4e90482ec4643e74"
+    assert all(before[i]==pixel for i,pixel in enumerate(dialog)
+               if not (36<=i%240<204 and 48<=i//240<112))
+    assert render(core,expected,start=True,walk=paused+[(155,157,3)],final_frame=158)==before
     item_code=paused+[(95,97,8),(105,107,10),(115,117,0),(125,127,10),(135,155,2)]
     check_counter(render(core,expected,start=True,walk=item_code),61,0)
     granted=render(core,expected,start=True,walk=item_code+[(161,163,2)])

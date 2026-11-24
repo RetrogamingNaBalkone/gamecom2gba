@@ -19,7 +19,7 @@ Copy either `.gba` file to a flash cart for a real GBA, or open it in an emulato
 
 ## Play
 
-After the logo and copyright screen, Duke appears in front of a mushroom cloud. Press **A** or **Start** during this scene to open the main menu, or wait for the title animation to finish. Choose **New Game**, then pick an episode and skill level with the D-pad. Press **A** or **Start** to confirm, or **B** to go back. **Options → Sounds** lets you mute or unmute the game. **Quit** returns to the opening animation.
+Press **A** or **Start** to advance one screen at a time through the logo, copyright notice, Duke title animation, and main menu. The opening also plays automatically. Choose **New Game**, then pick an episode and skill level with the D-pad. Press **A** or **Start** to confirm, or **B** to go back. **Options → Sounds** lets you mute or unmute the game. **Quit** returns to the opening animation.
 
 | GBA control | Action during play |
 |---|---|
@@ -31,7 +31,7 @@ After the logo and copyright screen, Duke appears in front of a mushroom cloud. 
 
 At a locked door, the first press of **A** uses the key and the second opens the door. Move forward to pass through. The pistol reloads after six shots. Weapon cycling skips empty guns.
 
-The pause and death screens show your four-character checkpoint password. Keep the corresponding GBA save file. To resume after restarting, open **Options → Password**, select each character with the D-pad, and press **A** to enter it. **B** deletes the last character. **Start** or **R** submits the four characters. The game resumes at the start of the saved map with the stored skill level and loadout. At the death screen, **A** immediately retries the same map with the starting pistol and full health.
+Press **Start** when the pause screen reads “Press PAUSE to continue.” The death screen shows your four-character checkpoint password. Keep the corresponding GBA save file. To resume after restarting, open **Options → Password**, select each character with the D-pad, and press **A** to enter it. **B** deletes the last character. **Start** or **R** submits the four characters. The game resumes at the start of the saved map with the stored skill level and loadout. At the death screen, **A** immediately retries the same map with the starting pistol and full health.
 
 While paused, **A, L, B, L, Select, Select** gives you a key and 100 armor. Release **Select** between presses. **R, A, B, A, B, B** grants the weapons and replenishes ammunition.
 
@@ -43,7 +43,7 @@ While paused, **A, L, B, L, Select, Select** gives you a key and 100 armor. Rele
 | Doors and combat | Four face buttons handle the three attack directions and weapon cycling. Up plus **D** operates doors. | **A** operates doors by itself. **B** attacks forward and the shoulder buttons handle side attacks. |
 | Pause secret | The key-and-armor code ends with two touches in the lower-right corner. | The code ends with two separate **Select** presses. |
 | Bonus maps | A fresh system record takes the 12-map route. Three flags control access to the additional maps. | The converter builds both routes. In the 15-map build, regular exits lead through all 15 maps and Launching Facility sits between Toxic Dump and Abyss. |
-| Passwords | The game.com system memory stores the checkpoint. The original password screen submits with **C**. | The GBA save stores the checkpoint and the current password. The password is also visible while paused. Submit it with **Start** or **R**. |
+| Passwords | The game.com system memory stores the checkpoint. The original password screen submits with **C**. | The GBA save stores the checkpoint and the current password. Submit it with **Start** or **R**. |
 | Sound | Two music voices and sampled effects run through the cartridge's sound driver. In episode 2, the second voice reads into episode 3's score before the shared repeat. | The port keeps the cartridge's 25 ms music duration unit and ends each voice at its score boundary. The second voice in episode 2 rests until both voices restart together. Gunfire can play over Duke's speech. |
 
 The original control and password instructions are in the [Tiger game.com manual](https://messui.polygonal-moogle.com/mess/gcom_dukenukem.pdf). The [original cartridge notes](duke-nukem-3d-original-assets.md) describe the bonus maps and sound samples in more detail. The [development notes](duke-nukem-3d-development.md) cover building, tests, rendering, and the Ghidra research.
