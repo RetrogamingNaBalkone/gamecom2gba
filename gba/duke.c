@@ -618,11 +618,33 @@ static int advance_corridor(struct Encounter *enc,const uint8_t *room,unsigned d
     if (room[0]!=1) return 0;
     /* The first west corridor enters action 3, walks from depth 3 to 2
        after 49 LCD periods, then strikes 21 periods after the step. */
-    enum { STEP=13440, STRIKE_LEAD=5760 };
+    enum { STEP=13440, FIRST_STRIDE=7680, STRIKE_LEAD=5760 };
     int changed=0;
     for (unsigned i=0;i<enc->count;i++) {
         struct Enemy *e=&enc->enemies[i];
-        if (!e->health || e->reaction || e->z<=depth+1) continue;
+        if (!e->health || e->reaction || e->z<=depth) continue;
+        if (e->z==depth+1) {
+            if (!e->contact) {
+                /* When Duke closes the gap, the current stride finishes
+                   before the strike. A recovered actor starts a fresh stride.
+                   Bank 22 action 3 takes 8/12/12/4 updates at distance one. */
+                static const uint8_t stride_updates[]={8,12,12,4};
+                unsigned lead=stride_updates[e->type]*3*274u;
+                if (e->action==3) {
+                    unsigned end=e->walk_time<FIRST_STRIDE ? FIRST_STRIDE : STEP;
+                    unsigned remaining=end>e->walk_time ? end-e->walk_time : 0;
+                    /* Fraction of this stride in 8-bit fixed point. */
+                    unsigned scale=end==FIRST_STRIDE ? (1u<<24)/FIRST_STRIDE
+                                                     : (1u<<24)/(STEP-FIRST_STRIDE);
+                    unsigned fraction=remaining*scale>>16;
+                    lead=lead*fraction>>8;
+                }
+                e->attack_time=CLOSE_ATTACK_PERIOD-lead;
+                e->contact=1;
+            }
+            continue;
+        }
+        e->contact=0;
         if (!corridor_step_clear(enc,e,room)) continue;
         e->walk_time+=dt;
         unsigned visual_dt=dt-(dt>>3);
@@ -639,7 +661,10 @@ static int advance_corridor(struct Encounter *enc,const uint8_t *room,unsigned d
         if (e->walk_time>=STEP) {
             e->walk_time-=STEP;
             e->z--;
-            if (e->z==depth+1) e->attack_time=CLOSE_ATTACK_PERIOD-STRIKE_LEAD;
+            if (e->z==depth+1) {
+                e->contact=1;
+                e->attack_time=CLOSE_ATTACK_PERIOD-STRIKE_LEAD;
+            }
             changed=1;
         }
     }
@@ -1159,9 +1184,10 @@ static unsigned opening(const struct Atlas *atlas,const uint32_t *opening_data,
                 frame++;
                 redraw=1;
             }
-            if (!audio.notes[0] && elapsed>=966*274u) music(TITLE_SCORE);
+            int duke_title=elapsed>=966*274u;
+            if (!audio.notes[0] && duke_title) music(TITLE_SCORE);
             if (elapsed-dt<150*274u && elapsed>=150*274u) sample(PLAYER_FX,11);
-            if (elapsed>=1635*274u || (pressed&(A|START))) {
+            if (elapsed>=1635*274u || (duke_title && (pressed&(A|START)))) {
                 page=1;
                 if (!audio.notes[0]) music(TITLE_SCORE);
                 redraw=1;

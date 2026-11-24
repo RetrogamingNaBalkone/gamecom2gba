@@ -19,7 +19,7 @@ Open either `.gba` file in a GBA emulator such as mGBA. [Bonus maps and routes](
 
 ## Play
 
-Press **A** or **Start** to skip the cartridge animation. Choose **New Game**, then pick an episode and skill level with the D-pad. Press **A** or **Start** to confirm, or **B** to go back. **Options → Sounds** lets you mute or unmute the game. **Quit** returns to the opening animation.
+After the logo and copyright screen, Duke appears in front of a mushroom cloud. Press **A** or **Start** during this scene to open the main menu, or wait for the title animation to finish. Choose **New Game**, then pick an episode and skill level with the D-pad. Press **A** or **Start** to confirm, or **B** to go back. **Options → Sounds** lets you mute or unmute the game. **Quit** returns to the opening animation.
 
 | GBA control | Action during play |
 |---|---|

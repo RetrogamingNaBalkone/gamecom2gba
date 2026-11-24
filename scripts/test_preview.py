@@ -167,7 +167,7 @@ def fight_campaign(ram,plan,rom):
 
 def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0, stage_cards=None,
            campaign=None,tail=(),observed=None,episode=0,audio_samples=None,save=None,audio_start=120,audio_end=320,
-           intro_frames=80,video_probe=None):
+           intro_frames=1000,video_probe=None):
     core = c.CDLL(str(core_path))
     frames = []
     capture=False
@@ -412,7 +412,7 @@ def card_tiles(rom,card):
 
 def check_main_menu(core,rom):
     def navigate(buttons, **kwargs):
-        tape=[(70+12*i,74+12*i,key) for i,key in enumerate(buttons)]
+        tape=[(1000+12*i,1004+12*i,key) for i,key in enumerate(buttons)]
         return render(core,rom,walk=tape,**kwargs)
 
     # Hash the complete LCD, including all unselected entries, against Tigerbyte.
@@ -420,12 +420,21 @@ def check_main_menu(core,rom):
             "3ee744809ab832e159ff18c7a1ac67eb9dbf7bb17dcb88b589d3786db31fd004",
             "0a2a3de0cdf2a2f11f617849e272ca6f8057e70a3bfb2e8524f0e965ff450152",
             "33ada3bf9267c154036c4ecc31e7df11e494f59c100cbf8115bf84e517e1725e"]
-    for buttons,digest in zip(([3],[3,5],[3,5,5],[3,5,8]),hashes):
-        pixels=navigate(buttons)
+    def lcd_hash(pixels):
         lcd=bytes({27:252,13:126,1:63,0:0}[pixels[y*240+x][0]]
                   for y in range(160) for x in range(20,220))
-        assert hashlib.sha256(lcd).hexdigest()==digest,buttons
-    assert navigate([3,5,5,8,3])==navigate([3])
+        return hashlib.sha256(lcd).hexdigest()
+    for buttons,digest in zip(([3],[3,5],[3,5,5],[3,5,8]),hashes):
+        assert lcd_hash(navigate(buttons))==digest,buttons
+    # Tigerbyte LCD after tapping A on the logo and again on the copyright screen.
+    early=[(64,80,8),(394,410,3)]
+    for frame,digest in [(984,"c708e445ef8c0eed4ba25236ee448521021e2dace76a689970b7996a2a04aa44"),
+                         (1450,"60c335463e79569c3314cca6ff4cf50cd03bf475efc9104381b26119838e151a"),
+                         (1650,hashes[0])]:
+        assert lcd_hash(render(core,rom,walk=early,final_frame=frame))==digest,frame
+    assert lcd_hash(navigate([8]))==hashes[0]
+    quit_tape=[(1000+12*i,1004+12*i,key) for i,key in enumerate([3,5,5,8])]
+    assert lcd_hash(render(core,rom,walk=quit_tape+[(2040,2044,3)]))==hashes[0]
 
     save=bytearray()
     render(core,rom,start=True,episode=1,save=save)
@@ -522,7 +531,7 @@ def check_combat_speech(core,rom,route):
     first_taunts=set()
     kills=0
     lines=0
-    for delay in range(80,400,17):
+    for delay in range(1000,1320,17):
         save=bytearray()
         baseline=replay(None,delay,save)
         kills+=struct.unpack_from("<H",save,11)[0]
@@ -569,8 +578,8 @@ def check_episode_openings(core,rom,cart):
     for episode in range(3):
         assert (listen(rom,episode,115)!=listen(no_speech,episode,115))==(episode==0),episode
         buttons=[3,8]+[5]*episode+[8,8,8]
-        walk=[(80+8*i,84+8*i,button) for i,button in enumerate(buttons)]
-        pixels=render(core,rom,walk=walk,final_frame=80+8*len(buttons))
+        walk=[(1000+8*i,1004+8*i,button) for i,button in enumerate(buttons)]
+        pixels=render(core,rom,walk=walk,final_frame=1000+8*len(buttons))
         for y in range(160):
             for x in range(200):
                 packed=cart[(0x27-episode)*16384+64*x+y//4]
@@ -796,6 +805,17 @@ def main():
                           "attack frame=5749 actor=0224 type=0 x=108 depth=2 health=90",
                           "attack frame=5850 actor=0224 type=0 x=108 depth=2 health=80"]:
                 assert event.encode() in run.stderr, event
+            for extra, events in [
+                (["100 ff","18 7f","220 ff"],
+                 ["motion 5803 0 1 34 108 2 1","attack frame=5863","attack frame=5963"]),
+                (["20 ff","18 fe","150 ff"],
+                 ["walk 5719 1 2","attack frame=5732","attack frame=5833"])]:
+                inputs=rows[:-1]+[s+" ff ff -1 0" for s in extra]
+                run=subprocess.run(original,cwd=work,check=True,input="\n".join(lobby_tape+inputs).encode(),
+                                   capture_output=True,env=dict(os.environ,GAMECOM_TRACE_COMBAT="5675",
+                                       GAMECOM_TRACE_ACTOR_MOTION="5675",GAMECOM_TRACE_WALK="5675"))
+                for event in events:
+                    assert event.encode() in run.stderr,event
             armed_west=west[:-1]+["40 ff","14 ff ff fd","40 ff"]
             verify_items(lobby_tape,armed_west,"weapon=2 bullets=48 shells=6 rockets=0")
             verify_items(lobby_tape,armed_west+["22 7f","10 ff"],"weapon=2 bullets=48 shells=5 rockets=0")
@@ -1001,6 +1021,24 @@ def main():
     assert any(picked[y*240+88:y*240+152]!=floor[y*240+88:y*240+152] for y in range(8))
     _,_,injured=visit(west,step+[([],180)])
     assert injured["inventory"][2]<arrival["inventory"][2], "corridor attacker missed"
+    # Measure from actual contact or injury, independent of the route's duration.
+    for wounded in (False,True):
+        onset=[]
+        def watch_corridor(frame,memory):
+            ram=memory[0x03000000]
+            _,room,_,depth=struct.unpack("<4I",c.string_at(ram,16))
+            if room==2 and not onset:
+                action=c.c_uint8.from_address(ram+POSITION_SIZE+5).value
+                if (action==1 if wounded else depth==2):
+                    onset.append(frame)
+        state={}
+        extra=[([],100),([0],4)] if wounded else [([4],4)]
+        render(core,expected,start=True,campaign=[(None,west)],tail=step+extra+[([],260)],
+               observed=state,video_probe=watch_corridor)
+        assert onset,(wounded,state)
+        hits=[f for f,_ in state["hits"] if f>onset[0]]
+        assert len(hits)>=2 and abs(hits[0]-onset[0]-(60 if wounded else 13))<=3,(onset,hits)
+        assert 99<=hits[1]-hits[0]<=102,hits
     # At the west entrance there are six shells even if the player already
     # acquired another shotgun or shells from defeated enemies.
     assert arrival["inventory"][3]>=6 and arrival["inventory"][5]&2
