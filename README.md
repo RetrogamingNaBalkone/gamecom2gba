@@ -41,6 +41,10 @@ The game guide explains which file to pick, the controls, passwords, and how the
 - [Duke Nukem 3D: bonus maps and sounds on the original cartridge](docs/duke-nukem-3d-original-assets.md)
 - [Duke Nukem 3D: development notes](docs/duke-nukem-3d-development.md): building, tests, rendering, and Ghidra research
 
+## AI disclosure
+
+This project is developed with the help of AI coding assistants, currently Anthropic's Claude and OpenAI's Codex. They are used for research, code, and documentation. A human maintainer directs the work, tests the results, and decides what gets merged.
+
 ## License
 
 The project's code and documentation are released under the [MIT License](LICENSE). Game.com games, BIOS images, and their contents belong to their respective owners and are not part of this repository.
