@@ -111,11 +111,13 @@ def actor_poses(core,rom):
 
 
 def menus(core,rom,bios_font=False):
-    # The reference hashes are crops from Tigerbyte's raw 200x160 shade arrays.
+    # Tigerbyte LCD crops, with the GBA underline in the two confirmation crops.
     checks=[
         ("map", [UP,LEFT,A], (0,21,200,139), "9bd7c123f917f52fc0d4134851dc890272e0fa90ecdd03a14cae9b671d389955"),
         ("file list", [UP,LEFT,LEFT,A], (0,0,200,160), "806a5630dbeaad4e721b70664f126e4797260da565baf947ba79696be589907c"),
         ("handgun check", [A,DOWN,A], (2,101,130,44), "5904b8977b7db3f83775ba7a2a71b6231f4ad269cf9494226ea55ec764040b14"),
+        ("equipment confirmation YES", [RIGHT,A,A,A], (87,146,42,9), "aa320117b98e8cd664d86f52ed2f7768c410ad5f09e67a0df6ffed2a8eb3ae88"),
+        ("equipment confirmation NO", [RIGHT,A,A,A,RIGHT], (87,146,42,9), "543169338d98267f5fb634893d15f3848fffd2043e885dbd673e690d144d62ad"),
         ("equipped knife", [RIGHT,A,A,A,A], (106,15,45,27), "a870b409490d7350523fc9b0fac518b0b3307554960117ad6a215f55b4b89eb3"),
         ("ammunition", [DOWN,A], (31,51,74,40), "d9d7a54224a7482ed3ceda99ea327421bee4c697faa5c3040604171eeec6e8a2"),
     ]
@@ -146,7 +148,7 @@ def menus(core,rom,bios_font=False):
             tape.append((f,f+5,button));f+=20
         got=lcd(render(core,rom,walk=tape,final_frame=f),*crop)
         assert got==expected,(name,got,expected)
-        print("Original LCD matched:",name)
+        print("LCD crop matched:",name)
 
 
 # Plane and facing from the normal police-save.txt cartridge route. For doors

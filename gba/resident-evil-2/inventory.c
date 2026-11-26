@@ -10,6 +10,7 @@ enum Screen { ITEMS, COMMAND, CHECK, CONFIRM, COMBINE, MAP, FILES, DOCUMENT, STO
 enum Asset { STATUS_BG, MAP_BG, FILE_BG, LIGHTER, OUTLINE, PANEL, COMMANDS, DISABLED,
              USE_QUESTION, YES_NO, FILE_SELECTION, FONT, TEXT, PAUSE_PANEL, DIGITS, PULSE,
              ICONS, DESCRIPTIONS, BOX_BG, TAKE_QUESTION, CLOCK, DOCUMENT_ARROW };
+enum { YES_X=96, NO_X=117, CHOICE_UNDERLINE_TILE=786 };
 struct Re2InventoryState re2_inventory_state EWRAM;
 static const uint8_t *block EWRAM;
 static uint32_t bg[4000] EWRAM;  /* 500 4bpp tiles in display order */
@@ -174,7 +175,7 @@ static void status(void)
     if(screen==CHECK || screen==REWARD) description(id,0,6,110);
     if(screen==CONFIRM || screen==PICKUP) {
         patch(screen==PICKUP?TAKE_QUESTION:USE_QUESTION,6,146);
-        patch(YES_NO,90,147);
+        patch(YES_NO,YES_X,147);
     }
 }
 
@@ -242,6 +243,11 @@ void re2_inventory_time(const uint8_t *assets)
 
 static void cursor(void)
 {
+    if(screen==CONFIRM || screen==PICKUP) {
+        re2_video_ui_sprite(0,focus?NO_X:YES_X,152,CHOICE_UNDERLINE_TILE+2*focus,1,0,0);
+        for(unsigned i=1;i<4;++i) re2_video_hide(i);
+        return;
+    }
     static const uint8_t row_x[]={69,102,135,168,138,168,138,168,138,168,163};
     static const uint8_t row_y[]={0,0,0,0,48,48,79,79,109,109,15};
     int x=0,y=0;
@@ -251,8 +257,6 @@ static void cursor(void)
         x=row_x[index]; y=row_y[index]; w=index<4?31:30; h=index<4?14:30;
     } else if(screen==COMMAND) {
         x=97; y=58+13*focus; w=36; h=12;
-    } else if(screen==CONFIRM || screen==PICKUP) {
-        x=88+23*focus; y=145; w=19; h=10;
     } else if(screen==STORAGE) {
         x=selected_side?89:138+30*(bag_slot&1);
         y=selected_side?16+20*(box_slot-box_top):49+30*(bag_slot>>1);
@@ -346,6 +350,12 @@ void re2_inventory_enter(const uint8_t *assets)
     re2_video_obj_tiles(768,cursor_tiles,1);
     static const uint32_t marker[8]={0x1111,0x1111,0x1111,0x1111,0,0,0,0};
     re2_video_obj_tiles(777,(const uint8_t *)marker,1);
+    /* Two 16x8 sprites with 11- and 9-pixel lines matching YES and NO. */
+    static const uint32_t underlines[32]={
+        [1]=0x11111111, [9]=0x111,
+        [17]=0x11111111, [25]=0x1
+    };
+    re2_video_obj_tiles(CHOICE_UNDERLINE_TILE,(const uint8_t *)underlines,4);
     render();
     cursor();
     pulse();

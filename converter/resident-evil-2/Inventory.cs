@@ -224,7 +224,8 @@ internal static class Inventory
             {0x32,114,236,22,19,0xe0,0}, {0x31,200,34,30,30,0x24,0},
             {0x31,200,64,37,20,0xe4,1}, {0x31,0,160,133,50,0xe4,1},
             {0x33,58,202,33,7,0xe4,1}, {0x32,166,124,62,8,0x24,0},
-            {0x32,218,181,36,6,0x24,0} };
+            // Skip the cartridge's selection arrow before the YES / NO labels.
+            {0x32,224,181,30,6,0x24,0} };
         for(int i=0;i<patches.GetLength(0);++i)
             parts.Add(Patch(cart,patches[i,0],patches[i,1],patches[i,2],patches[i,3],
                             patches[i,4],patches[i,5],patches[i,6]!=0));

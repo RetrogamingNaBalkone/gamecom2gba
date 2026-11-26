@@ -43,6 +43,7 @@ For Resident Evil 2, pass your US cartridge dump to the same converter. It write
 
 ## Cartridge research
 
+- [Unlock codes in the original game.com library](docs/gamecom-unlock-codes.md) covers the 21 game ROMs in the audit.
 - [Tiger Web Link](docs/tiger-web-link/README.md) covers the original cartridge's PC protocol, high scores, and saved games.
 
 ## AI disclosure
