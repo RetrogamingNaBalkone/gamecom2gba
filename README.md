@@ -41,6 +41,10 @@ For Resident Evil 2, pass your US cartridge dump to the same converter. It write
 - [Duke Nukem 3D: bonus maps and sounds on the original cartridge](docs/duke3d/duke-nukem-3d-original-assets.md)
 - [Duke Nukem 3D: development notes](docs/duke3d/duke-nukem-3d-development.md): building, tests, rendering, and Ghidra research
 
+## Cartridge research
+
+- [Tiger Web Link](docs/tiger-web-link/README.md) covers the original cartridge's PC protocol, high scores, and saved games.
+
 ## AI disclosure
 
 This project is developed with the help of AI coding assistants, currently Anthropic's Claude and OpenAI's Codex. They are used for research, code, and documentation. A human maintainer directs the work, tests the results, and decides what gets merged.
