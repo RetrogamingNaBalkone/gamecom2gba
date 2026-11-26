@@ -356,7 +356,7 @@ struct Inventory {
     unsigned key, armor, health, shells, rockets, weapons;
 };
 
-/* scripts/test_preview.py reads this IWRAM layout through the emulator. */
+/* scripts/duke3d/test_preview.py reads this IWRAM layout through the emulator. */
 _Static_assert(sizeof(struct Enemy)==24 && sizeof(struct Encounter)==456 &&
                sizeof(struct Weapon)==24 && sizeof(struct Inventory)==24,"IWRAM layout");
 

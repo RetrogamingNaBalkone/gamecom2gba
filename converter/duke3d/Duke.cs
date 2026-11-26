@@ -59,7 +59,7 @@ internal static class Duke
         output.Write(0);
         output.Write(0); // opening timeline
         output.Write(0); // sound directory
-        var backgrounds=new BackgroundAtlas();
+        var backgrounds=new BackgroundAtlas(136);
         var sprites=new TileAtlas();
         for (int level=0; level<levels; level++) Intermission.Write(cart,output,backgrounds,level);
         Intermission.WriteRetry(cart,output,backgrounds);

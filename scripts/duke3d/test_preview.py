@@ -13,7 +13,7 @@ import sys
 import tempfile
 import zipfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 BONUS_ROUTES={
     5:"L2 F9 B F15 B F L4 F14 L B F R5 F8 B F39 B F7 B F7 B F R4 F6 R B F20 B F L10 F14 B2 F R4 F5 B",
@@ -31,7 +31,7 @@ def verify_bonus_passwords(original,tape,snapshot,work):
         ("launching-facility",0x15,0x21,5,7),("lunatic-fringe",0x25,0x31,10,1),
         ("freeway",0x35,0x11,0,1)]:
         prepared=work/(name+".nv")
-        subprocess.run([sys.executable,ROOT/"scripts/bonus_checkpoint.py",snapshot,name,prepared],check=True)
+        subprocess.run([sys.executable,Path(__file__).with_name("bonus_checkpoint.py"),snapshot,name,prepared],check=True)
         route=BONUS_ROUTES[route_id]
         if stage==0x15:
             # Detour for the first room's medkit, then armor in room 3.
@@ -644,7 +644,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("cartridge", type=Path, help="Duke USA ZIP")
     parser.add_argument("--core", default=os.environ.get("MGBA_LIBRETRO"))
-    parser.add_argument("--reference", type=Path, help="reference.c executable; use adjacent BIOS ZIPs")
+    parser.add_argument("--reference", type=Path, help="reference.c executable")
+    parser.add_argument("--bios-dir", type=Path, help="directory containing the two game.com BIOS ZIPs")
     args = parser.parse_args()
     core = args.core or next((Path(os.environ["LOCALAPPDATA"]) / "Programs/mGBA")
                              .glob("libretro-*/mgba_libretro.dll"))
@@ -656,11 +657,11 @@ def main():
     weapon_samples=[(1,0x86e5,18,17),(1,0x86db,44,30),
                     (2,0x8712,23,17),(3,0x868b,22,16)]
     reference_weapons={}
-    with tempfile.TemporaryDirectory(dir=ROOT / "build") as tmp:
+    with tempfile.TemporaryDirectory(dir=ROOT / "build/duke3d") as tmp:
         work = Path(tmp)
         converter_dir = work / "converter"
         converter_dir.mkdir()
-        exe = Path(shutil.copy2(ROOT / "dist/gamecom2gba.exe", converter_dir))
+        exe = Path(shutil.copy2(ROOT / "dist/duke3d/gamecom2gba.exe", converter_dir))
         outputs = [converter_dir / f"duke3d-{count}-maps.gba" for count in (12, 15)]
         raw = work / "renamed.bin"
         raw.write_bytes(data)
@@ -700,7 +701,10 @@ def main():
             for role, sha in [("Internal", "03368237e8fed4a8724f3b4a1596cf4b17c96d33"),
                               ("External", "97f782e72d738f4d7b861363266bf46b438d9b50")]:
                 name = "[BIOS] Tiger Game.com (USA) (" + role + ").zip"
-                with zipfile.ZipFile(args.cartridge.parent / name) as archive:
+                bios_dir = args.bios_dir or args.cartridge.parent
+                if args.bios_dir is None and not (bios_dir / name).is_file():
+                    bios_dir = bios_dir.parent
+                with zipfile.ZipFile(bios_dir / name) as archive:
                     blob = next(b for i in archive.infolist() for b in [archive.read(i)]
                                 if hashlib.sha1(b).hexdigest() == sha)
                 path = work / (role + ".bin")

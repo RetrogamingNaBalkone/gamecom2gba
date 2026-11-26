@@ -2,9 +2,9 @@ param([Parameter(Mandatory)][string]$Cartridge, [string]$GhidraHome = $env:GHIDR
       [ValidateSet('Startup','Actors','Menu')][string]$View='Startup')
 $ErrorActionPreference = 'Stop'
 if (!$GhidraHome) { $GhidraHome = "$env:LOCALAPPDATA/Programs/Ghidra/ghidra_12.1.2_PUBLIC" }
-$root = Split-Path $PSScriptRoot
-$projects = [IO.Directory]::CreateDirectory("$root/build/ghidra").FullName
-$stage = [IO.Directory]::CreateDirectory("$root/build/$([guid]::NewGuid())").FullName
+$root = Split-Path (Split-Path $PSScriptRoot)
+$projects = [IO.Directory]::CreateDirectory("$root/build/duke3d/ghidra").FullName
+$stage = [IO.Directory]::CreateDirectory("$root/build/duke3d/$([guid]::NewGuid())").FullName
 try {
     $source = (Get-Item -LiteralPath $Cartridge).FullName
     $expected = 'FAF6912C5094477FA83A19864F43EB2ACD5929166D8B9267689D6661F5CEB5BD'
@@ -45,7 +45,7 @@ try {
     }
     if ($LASTEXITCODE) { throw "Ghidra returned $LASTEXITCODE" }
 } finally {
-    if ((Split-Path $stage) -eq (Get-Item "$root/build").FullName) {
+    if ((Split-Path $stage) -eq (Get-Item "$root/build/duke3d").FullName) {
         Remove-Item -LiteralPath $stage -Recurse -Force
     }
 }

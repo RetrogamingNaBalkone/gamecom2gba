@@ -306,20 +306,20 @@ internal sealed class Street
         Bezel.Draw(walls);
         Walls(walls,lane,depth,5);
         if (Length-depth<5) Walls(walls,lane,depth,Length-depth);
-        writer.Write(backgrounds.AddLayer(walls));
+        writer.Write(backgrounds.AddLayer(walls,136));
 
         int doors=backgrounds.Empty;
         if (Length-depth<=3) {
             var layer=new byte[136,240];
             Doors(layer,lane,Length-depth,opened,opened ? 1 : -1);
-            doors=backgrounds.AddLayer(layer);
+            doors=backgrounds.AddLayer(layer,136);
         }
         writer.Write(doors);
         var scenery=new byte[136,240];
         bool visible=false;
         for (int distance=4;distance>0;distance--)
             visible|=Scenery(scenery,lane,depth,distance);
-        writer.Write(visible ? backgrounds.AddLayer(scenery) : backgrounds.Empty);
+        writer.Write(visible ? backgrounds.AddLayer(scenery,136) : backgrounds.Empty);
     }
 
     internal void Write(BinaryWriter output)
@@ -381,7 +381,7 @@ internal sealed class Street
                 for (int frame=2;frame<=3;frame++) {
                     var layer=new byte[136,240];
                     Doors(layer,x,1,true,frame);
-                    writer.Write(backgrounds.AddLayer(layer));
+                    writer.Write(backgrounds.AddLayer(layer,136));
                 }
                 break;
             }

@@ -16,18 +16,18 @@ In the 15-map GBA build, the affected stretches are **Toxic Dump → Launching F
 
 ### Play the maps in the original game
 
-1. Launch the original Duke cartridge in a game.com emulator so it creates its system record. Export the emulator's 8,192-byte NVRAM image as `originals/gamecom.nv`.
-2. From the repository root, create the `build/` directory if needed and run the following command. Use `lunatic-fringe` or `freeway` for the other maps and choose a new output filename. The script writes a separate image and updates the checkpoint checksum.
+1. Launch the original Duke cartridge in a game.com emulator so it creates its system record. Export the emulator's 8,192-byte NVRAM image as `originals/duke3d/gamecom.nv`.
+2. From the repository root, create the `build/duke3d/` directory if needed and run the following command. Use `lunatic-fringe` or `freeway` for the other maps and choose a new output filename. The script writes a separate image and updates the checkpoint checksum.
 
    ```powershell
-   py scripts/bonus_checkpoint.py originals/gamecom.nv launching-facility build/launching-facility.nv
+   py scripts/duke3d/bonus_checkpoint.py originals/duke3d/gamecom.nv launching-facility build/duke3d/launching-facility.nv
    ```
 
 3. Load the resulting NVRAM image in the game.com emulator. Open **Options → Password**, enter **AAAA**, and press **C**. The checkpoint starts Duke with full health and a pistol with 48 rounds.
 
-The original cartridge was played from each prepared password through the regular exit in Tigerbyte, with normal movement and combat. The reference routes recorded 48 frags on Launching Facility, 17 on Lunatic Fringe, and 11 on Freeway. [Checkpoint tool](../scripts/bonus_checkpoint.py) · [Reference replays](../scripts/test_preview.py)
+The original cartridge was played from each prepared password through the regular exit in Tigerbyte, with normal movement and combat. The reference routes recorded 48 frags on Launching Facility, 17 on Lunatic Fringe, and 11 on Freeway. [Checkpoint tool](../../scripts/duke3d/bonus_checkpoint.py) · [Reference replays](../../scripts/duke3d/test_preview.py)
 
-The cartridge's map and room pointer tables are in bank `27`. The original exit and bonus-flag logic is at `21:6A18` and `23:62B0`. [Ghidra labels](../analysis/ghidra/DukeMenu.java)
+The cartridge's map and room pointer tables are in bank `27`. The original exit and bonus-flag logic is at `21:6A18` and `23:62B0`. [Ghidra labels](../../analysis/duke3d/ghidra/DukeMenu.java)
 
 ## Digitized sound samples
 
@@ -41,6 +41,6 @@ The original stores speech and effects in one directory of 27 entries, numbered 
 | 19 | `0x06F40D` | 0.89 s | The original weapon code passes this ID to the sound driver at `21:7214`. The exact playback conditions remain unverified in a replay. |
 | 22 | `0x0723AD` | 0.24 s | Playback trigger unconfirmed |
 
-The five IDs above were identified by following the GBA playback calls, including the weapon, pickup, enemy, and speech lookup tables. In a Tigerbyte replay of Hollywood Holocaust, the first nonfatal close-range hit triggered sample 9 on frame 4731 and sample 6 on frame 4732, counting from BIOS startup. The trace establishes that the cartridge selected sample 6. Its audibility in the original mix remains unverified. Playback triggers for IDs 2, 15, and 22 remain unconfirmed. [GBA playback code](../gba/duke.c)
+The five IDs above were identified by following the GBA playback calls, including the weapon, pickup, enemy, and speech lookup tables. In a Tigerbyte replay of Hollywood Holocaust, the first nonfatal close-range hit triggered sample 9 on frame 4731 and sample 6 on frame 4732, counting from BIOS startup. The trace establishes that the cartridge selected sample 6. Its audibility in the original mix remains unverified. Playback triggers for IDs 2, 15, and 22 remain unconfirmed. [GBA playback code](../../gba/duke3d/duke.c)
 
-To locate the samples in the original, use the directory at CPU bank and address `26:8C71` (file offset `0x04CC71`). Each entry is a three-byte big-endian file offset. At that offset, a three-byte big-endian length includes the length field itself. The remaining bytes each encode two differential PCM samples, with the low nibble first. Durations in the table use two samples per payload byte at approximately 7.88 kHz. The original driver reads the selected directory entry at `20:5114` before decoding it. [Decoder and directory reader](../converter/DukeAudio.cs) · [Reference harness](../analysis/reference.c)
+To locate the samples in the original, use the directory at CPU bank and address `26:8C71` (file offset `0x04CC71`). Each entry is a three-byte big-endian file offset. At that offset, a three-byte big-endian length includes the length field itself. The remaining bytes each encode two differential PCM samples, with the low nibble first. Durations in the table use two samples per payload byte at approximately 7.88 kHz. The original driver reads the selected directory entry at `20:5114` before decoding it. [Decoder and directory reader](../../converter/duke3d/DukeAudio.cs) · [Reference harness](../../analysis/duke3d/reference.c)

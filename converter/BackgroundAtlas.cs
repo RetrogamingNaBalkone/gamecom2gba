@@ -10,9 +10,9 @@ internal sealed class BackgroundAtlas
     readonly List<uint> lines=new List<uint>();
     internal readonly int Empty;
 
-    internal BackgroundAtlas()
+    internal BackgroundAtlas(int layerHeight)
     {
-        Empty=AddLayer(new byte[136,240]);
+        Empty=AddLayer(new byte[layerHeight,240],layerHeight);
     }
 
     internal int Add(byte[] bytes) { return data.AddOffset(bytes); }
@@ -48,7 +48,7 @@ internal sealed class BackgroundAtlas
         return Add(tile)|1;
     }
 
-    internal int AddLayer(byte[,] image,int height=136)
+    internal int AddLayer(byte[,] image,int height)
     {
         using (var layout=new MemoryStream())
         using (var layoutWriter=new BinaryWriter(layout)) {

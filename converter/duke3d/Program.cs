@@ -4,6 +4,9 @@ using System.Reflection;
 
 internal static class Program
 {
+    static readonly Cartridge SupportedCartridge = new Cartridge("Duke Nukem 3D (USA)", 2097152,
+        "faf6912c5094477fa83a19864f43eb2acd5929166d8b9267689d6661f5ceb5bd");
+
     static long BuildDuke(byte[] cart, MemoryStream rom)
     {
         using (Stream runtime = Assembly.GetExecutingAssembly().GetManifestResourceStream("runtime"))
@@ -51,7 +54,7 @@ internal static class Program
             if (String.Equals(input, standard, StringComparison.OrdinalIgnoreCase) ||
                 String.Equals(input, extended, StringComparison.OrdinalIgnoreCase))
                 throw new IOException("Input and output must be different files.");
-            var cart = Cartridge.Open(input);
+            var cart = SupportedCartridge.Open(input);
             using (var rom = new MemoryStream())
             {
                 long bonusFlagsOffset = BuildDuke(cart, rom);

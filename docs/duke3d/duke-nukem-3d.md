@@ -7,7 +7,7 @@ This in-development port of Tiger's game.com cartridge runs natively on GBA. It 
 From the repository root on Windows, run the converter with your own **Duke Nukem 3D (USA)** cartridge dump. It accepts a ZIP or a raw ROM and checks the cartridge revision before converting it. The cartridge alone is enough.
 
 ```powershell
-.\dist\gamecom2gba.exe ".\originals\Duke Nukem 3D (USA).zip"
+.\dist\duke3d\gamecom2gba.exe ".\originals\duke3d\Duke Nukem 3D (USA).zip"
 ```
 
 If you are starting from a source checkout, [build the converter first](duke-nukem-3d-development.md#build-the-converter-on-windows). The converter writes both files next to `gamecom2gba.exe` and prints their full paths.
