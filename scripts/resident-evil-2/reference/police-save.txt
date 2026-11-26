@@ -1,0 +1,1012 @@
+# Clean boot to the first police-station typewriter. Durations are Tigerbyte video frames.
+1200 system-menu
+8 cartridge-selected @2,2
+2400 input
+8 input A
+120 input
+8 input A
+45 input
+14 input RIGHT
+30 input C
+25 input C A
+25 input C
+25 input C A
+25 input C
+25 input C A
+25 input C
+25 input C A
+25 input C
+25 input C A
+25 input C
+25 input C A
+25 input C
+25 input C A
+25 input C
+25 input C A
+25 input C
+25 input C A
+25 input C
+25 input C A
+25 input C
+25 input C A
+25 input C
+25 input C A
+25 input C
+350 input UP B
+65 input LEFT
+80 input UP
+65 input UP B
+85 input UP
+30 input LEFT
+65 input RIGHT
+48 input
+12 input C
+72 input
+24 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+73 input UP
+70 street-camera-5 UP B
+35 input RIGHT
+30 input UP B
+35 input
+16 input A
+53 input
+16 input A
+18 input
+56 input RIGHT
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+55 input RIGHT
+85 input UP
+95 input LEFT
+15 input UP
+45 input RIGHT
+48 input
+16 street-camera-6-ammo-collected A
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+78 input UP
+65 input UP B
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+55 input RIGHT
+85 input UP
+91 input LEFT
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+40 input UP B
+30 input UP
+50 input RIGHT
+48 input
+16 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+13 input UP
+60 input LEFT
+35 input RIGHT
+15 input C
+18 input
+15 input C
+18 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+55 input LEFT
+15 input UP
+70 input UP B
+35 input LEFT
+15 input C
+18 input
+15 input C
+18 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+35 input LEFT
+15 input C
+18 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+70 input RIGHT
+20 input LEFT
+100 input UP B
+88 input RIGHT
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+50 input LEFT
+85 input UP
+48 input
+16 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+73 input UP
+70 input UP B
+30 input RIGHT
+130 input UP B
+45 input LEFT
+300 input UP
+48 input
+16 input A
+48 input
+24 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+90 input LEFT
+275 input UP B
+95 input UP
+30 input UP B
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+50 input RIGHT
+15 input UP
+65 input UP B
+90 input UP
+90 input RIGHT
+60 input UP B
+115 input UP
+48 input
+24 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+95 input LEFT
+225 input UP B
+80 input UP
+15 input UP B
+30 input RIGHT
+85 input UP B
+70 input RIGHT
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+50 input RIGHT
+85 input UP
+95 input LEFT
+15 input UP
+40 input RIGHT
+48 input
+16 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+30 input LEFT
+215 input UP B
+140 input UP
+55 input UP B
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+175 input UP B
+15 input C
+18 input
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+56 input RIGHT
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+98 input RIGHT
+15 input C
+18 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+12 input C
+10 input
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+91 input RIGHT
+18 input A
+24 input
+90 input RIGHT
+370 input UP B
+45 input UP
+50 input LEFT
+48 input
+24 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+73 input UP
+70 input UP B
+85 input UP
+30 input LEFT
+60 input RIGHT
+48 input
+16 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+28 input LEFT
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+540 input UP B
+145 input UP
+725 input UP B
+130 input UP
+235 input UP B
+15 input C
+18 input
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+520 input UP B
+130 input UP
+545 input UP B
+15 input UP
+45 input LEFT
+48 input
+24 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+25 input RIGHT
+340 input UP B
+45 input UP
+375 input UP B
+45 input UP
+20 input UP B
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+60 input LEFT
+85 input UP
+98 input RIGHT
+15 input C
+18 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+15 input C
+18 input
+18 input A
+24 input
+620 input UP B
+35 input UP
+45 input LEFT
+48 input
+16 police-entrance A
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+8 input A
+8 input UP
+15 input RIGHT
+160 input UP B
+50 input UP
+15 input UP B
+85 input UP
+90 input LEFT
+45 input UP B
+15 input UP
+95 input LEFT
+45 input UP B
+95 input UP
+15 typewriter-room UP B
+30 input RIGHT
+110 input UP B
+30 input
+16 input A
+45 input
+16 input A
+15 input
+15 input @6,9
+20 input
+15 input A
+20 four-ribbons
+20 input LEFT
+80 input UP
+35 input LEFT
+55 input RIGHT
+40 input
+16 input A
+15 checkpoint-saved

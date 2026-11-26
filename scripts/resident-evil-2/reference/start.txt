@@ -1,0 +1,13 @@
+1200 system-menu
+8 select-cartridge @2,2
+120 opening-1
+240 opening-2
+360 opening-3
+480 opening-4
+1200 title-idle
+8 title-a A
+120 after-title
+8 second-a A
+240 after-selection
+8 third-a A
+300 after-third

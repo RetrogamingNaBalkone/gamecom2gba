@@ -1,0 +1,11 @@
+1200 data-found
+8 keep-data A
+1200 bios-menu
+8 cartridge @2,2
+2400 intro
+8 title A
+120 menu
+8 select-load DOWN
+40 highlighted
+8 load A
+70 station

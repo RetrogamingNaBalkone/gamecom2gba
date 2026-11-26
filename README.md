@@ -4,7 +4,7 @@ Play Tiger game.com games on the Game Boy Advance.
 
 ![Duke Nukem 3D running on the GBA](docs/images/duke3d/duke-nukem-3d.jpg)
 
-gamecom2gba turns your own game.com cartridge dump into a native GBA ROM. This is not an emulator: each game is rebuilt for the GBA, so it runs at full speed on a real console, a flash cart, or any GBA emulator. The original picture keeps its 200 × 160 size, framed by side panels in the colors of the game.com case.
+gamecom2gba turns your own game.com cartridge dump into a native GBA ROM. You can open the resulting game in a GBA emulator or copy it to a flash cart for a real console. The original picture keeps its 200 × 160 size, framed by side panels in the colors of the game.com case.
 
 No game data is included. You supply the ROM, and the converter checks that it is a supported cartridge before it does anything.
 
@@ -13,7 +13,7 @@ No game data is included. You supply the ROM, and the converter checks that it i
 | Game | Status |
 |---|---|
 | **Duke Nukem 3D** | Playable, in development. Tested in mGBA and on real GBA hardware. → [How to play](docs/duke3d/duke-nukem-3d.md) |
-| Resident Evil 2 | Planned |
+| **Resident Evil 2** | Full campaign completed in mGBA. Physical GBA testing is pending. → [Port status and controls](docs/resident-evil-2/resident-evil-2.md) |
 | Batman & Robin | Planned |
 | Castlevania | Planned |
 | Fighters Megamix | Planned |
@@ -33,7 +33,7 @@ No game data is included. You supply the ROM, and the converter checks that it i
 
 3. The `.gba` files appear next to `gamecom2gba.exe`. Copy one to your flash cart or open it in an emulator.
 
-The game guide explains which file to pick, the controls, passwords, and how the port differs from the original.
+For Resident Evil 2, pass your US cartridge dump to the same converter. It writes `resident-evil-2.gba` next to the executable. See the game guides for controls and tested routes.
 
 ## Documentation
 

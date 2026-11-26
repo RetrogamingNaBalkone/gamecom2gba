@@ -167,7 +167,7 @@ def fight_campaign(ram,plan,rom):
 
 def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0, stage_cards=None,
            campaign=None,tail=(),observed=None,episode=0,audio_samples=None,save=None,audio_start=120,audio_end=320,
-           intro_frames=1000,video_probe=None):
+           intro_frames=1000,video_probe=None,controller=None,pixel_probe=None):
     core = c.CDLL(str(core_path))
     frames = []
     capture=False
@@ -194,6 +194,8 @@ def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0, st
     def video(ptr, width, height, pitch):
         if ptr and video_probe and frame>=0:
             video_probe(frame,memory)
+        if ptr and pixel_probe and frame>=0:
+            pixel_probe(frame,ptr,pitch,4 if pixel_format==1 else 2)
         if ptr and capture:
             step = 4 if pixel_format == 1 else 2
             frames[:] = [b"".join(c.string_at(ptr + y*pitch, width*step)
@@ -286,6 +288,13 @@ def render(core_path, rom, start=False, firing=False, walk=(), final_frame=0, st
                         keys.add(button)
                     else:
                         keys.discard(button)
+                if controller is not None:
+                    next_keys=controller(frame,memory)
+                    if next_keys is None:
+                        done=capture=True
+                        keys.clear()
+                    else:
+                        keys=set(next_keys)
                 if firing and frame == 120:
                     keys.add(0)
                 core.retro_run()

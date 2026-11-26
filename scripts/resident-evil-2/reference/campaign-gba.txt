@@ -1,0 +1,4004 @@
+# mGBA display periods followed by held GBA controls. Begins at cold boot with the police typewriter SRAM.
+2092
+8 A
+70
+8 DOWN
+42
+8 A
+52
+5 UP B
+32 RIGHT
+14 UP
+64 UP B
+33 RIGHT
+78 UP
+93 UP B
+29 UP
+33 RIGHT
+3
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+1 A
+23 LEFT
+78 UP B
+80 UP
+10
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+2 A
+25 LEFT
+14 UP B
+28 UP
+33 LEFT
+18
+1 A
+9
+4 RIGHT
+8
+4 A
+8
+4 A
+8
+4 DOWN
+8
+4 A
+8
+4 DOWN
+8
+4 DOWN
+8
+4 DOWN
+8
+4 A
+8
+4 SELECT
+8
+4 SELECT
+8
+4 RIGHT
+8
+4 A
+8
+4 A
+8
+4 A
+8
+4 A
+8
+4 SELECT
+48 RIGHT
+79 UP
+64 UP B
+78 UP
+33 RIGHT
+65 UP B
+46 UP
+28 LEFT
+1
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+77 UP
+65 UP B
+79 UP
+30 RIGHT
+14 UP B
+32 RIGHT
+78 UP
+185 UP B
+77 UP
+2 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+15
+76 UP
+64 UP B
+80 UP
+16 UP B
+9
+1 R
+4
+77 LEFT
+13 UP B
+78 UP
+65 UP B
+78 UP
+65 UP B
+78 UP
+65 UP B
+79 UP
+2 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+23 LEFT
+14 UP
+58 UP B
+2
+1 R
+82 LEFT
+13 UP B
+32 LEFT
+32 UP
+15
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+1
+26 RIGHT
+91 UP B
+27 RIGHT
+64 UP
+3
+1 R
+3
+77 LEFT
+18 UP
+71 UP B
+81 UP
+172 UP B
+32 LEFT
+14 UP
+32 RIGHT
+78 UP B
+13 UP
+7
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+27 LEFT
+78 UP
+65 UP B
+79 UP
+65 UP B
+83 UP
+72 UP B
+78 UP
+32 LEFT
+14 UP
+32 RIGHT
+7
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+20 LEFT
+78 UP
+65 UP B
+89 UP
+33 RIGHT
+43 UP B
+7
+1 R
+1
+119 UP B
+78 UP
+64 UP B
+78 UP
+33 LEFT
+27 UP B
+30 UP
+10
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+57 UP
+28 LEFT
+14 UP
+32 RIGHT
+13 UP B
+29 UP
+3
+6 A
+9
+54 UP B
+48 UP
+59 RIGHT
+16
+6 A
+18
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+1 A
+26 LEFT
+13 UP
+65 UP B
+78 UP
+32 LEFT
+78 UP B
+29 RIGHT
+133 UP B
+30 UP
+1 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+22 RIGHT
+79 UP
+64 UP B
+78 UP
+65 UP B
+32 LEFT
+64 UP
+8
+1 R
+1
+87 RIGHT
+18 UP
+67 UP B
+78 UP
+32 RIGHT
+78 UP B
+45 UP
+6
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+67 UP
+64 UP B
+33 RIGHT
+63 UP
+7
+1 R
+2
+71 RIGHT
+13 UP
+9 LEFT
+4
+1 R
+106 RIGHT
+27 UP B
+25 RIGHT
+14 UP B
+79 UP
+65 UP B
+80 UP
+32 RIGHT
+14
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+78 UP B
+177 UP
+32 RIGHT
+14 UP
+32 LEFT
+13 UP B
+29 UP
+60 RIGHT
+5
+6 A
+2
+144 UP B
+12 UP
+59 RIGHT
+17
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+1 A
+26 LEFT
+78 UP B
+80 UP
+65 UP B
+79 UP
+65 UP B
+29 LEFT
+78 UP
+3
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+1
+19 RIGHT
+13 UP B
+18 UP
+28 RIGHT
+39 UP B
+9 UP
+5
+1 R
+3
+117 RIGHT
+53 UP
+1
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+68 UP
+71 UP B
+83 UP
+64 UP B
+78 UP
+65 UP B
+18 UP
+28 RIGHT
+13 UP
+59 RIGHT
+14
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+78 UP
+65 UP B
+78 UP
+32 LEFT
+64 UP
+28 RIGHT
+4 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+12
+27 RIGHT
+78 UP
+64 UP B
+11
+4 SELECT
+10
+4 RIGHT
+10
+4 UP
+10
+4 A
+10
+4 A
+10
+4 A
+10
+4 A
+10
+4 SELECT
+2 UP
+32 LEFT
+53 UP B
+30 UP
+16
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+6 A
+18
+1 A
+24 LEFT
+14 UP
+64 UP B
+33 LEFT
+65 UP B
+28 RIGHT
+78 UP
+33 LEFT
+31 UP
+13
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+69 UP
+65 UP B
+78 UP
+32 LEFT
+251 UP
+21 LEFT
+14 UP
+32 RIGHT
+13 UP B
+29 RIGHT
+14 UP
+15
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+20 LEFT
+13 UP
+65 UP B
+79 UP
+65 UP B
+80 UP
+65 UP B
+78 UP
+185 UP B
+78 UP
+65 UP B
+79 UP
+62 UP B
+78 UP
+33 RIGHT
+26 UP B
+31 UP
+27 LEFT
+7
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+72 UP
+64 UP B
+78 UP
+33 RIGHT
+13 UP B
+47 UP
+28 LEFT
+9
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+2 A
+69 UP
+184 UP B
+81 UP
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+1
+73 UP
+26 UP B
+6
+1 R
+3
+75 RIGHT
+13 UP B
+18 UP
+32 RIGHT
+31 UP B
+49 UP
+3
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+4
+96 UP B
+30 RIGHT
+14 UP
+33 LEFT
+212 UP B
+78 UP
+32 LEFT
+52 UP B
+30 UP
+28 RIGHT
+10
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+17 RIGHT
+78 UP
+65 UP B
+78 UP
+32 LEFT
+40 UP B
+46 UP
+12
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+6 UP
+32 LEFT
+52 UP B
+30 UP
+9
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+1
+68 UP
+19 LEFT
+27 UP B
+25 RIGHT
+14 UP
+9
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+77 UP
+65 UP B
+78 UP
+5
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+17 RIGHT
+80 UP
+62 UP B
+79 UP
+62 UP B
+89 UP
+64 UP B
+78 UP
+32 RIGHT
+27 UP B
+30 UP
+12
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+70 UP
+65 UP B
+32 RIGHT
+40 UP B
+28 LEFT
+78 UP
+33 RIGHT
+31 UP
+28 LEFT
+12
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+15 RIGHT
+26 UP B
+29 RIGHT
+14 UP
+32 LEFT
+27 UP B
+26 LEFT
+13 UP
+33 RIGHT
+31 UP
+28 LEFT
+9
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+6 A
+18
+1 A
+43 RIGHT
+79 UP
+64 UP B
+33 RIGHT
+39 UP B
+32 LEFT
+78 UP
+32 RIGHT
+53 UP B
+44 UP
+33 LEFT
+2 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+14
+27 LEFT
+78 UP
+64 UP B
+89 UP
+67 UP B
+86 UP
+36 LEFT
+52 UP
+59 RIGHT
+4 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+12
+78 UP
+65 UP B
+78 UP
+32 LEFT
+14 UP B
+29 UP
+32 RIGHT
+15
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+2 A
+25 RIGHT
+291 UP B
+30 LEFT
+264 UP B
+28 LEFT
+13 UP B
+60 RIGHT
+13 UP
+32 LEFT
+40 UP B
+32 LEFT
+13 UP
+33 RIGHT
+39 UP B
+29 UP
+16
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+70 UP
+184 UP B
+30 LEFT
+78 UP
+65 UP B
+78 UP
+8
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+341 UP B
+1 R
+3
+25 LEFT
+27 RIGHT
+27 LEFT
+110 UP
+36 LEFT
+14
+6 A
+18
+1 A
+21 LEFT
+84 UP
+32 LEFT
+57 UP B
+8
+1 R
+111 UP B
+78 UP
+64 UP B
+33 RIGHT
+146 UP B
+78 UP
+32 LEFT
+52 UP B
+31 UP
+27 RIGHT
+8
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+19 LEFT
+14 UP
+32 RIGHT
+66 UP B
+78 UP
+65 UP B
+32 RIGHT
+78 UP
+83 UP B
+43 UP
+32 LEFT
+1 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+3
+78 UP
+23 UP B
+1 R
+2
+82 RIGHT
+13 UP B
+18 UP
+28 RIGHT
+27 UP B
+44 UP
+12
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+3
+102 UP B
+29 RIGHT
+14 UP
+33 LEFT
+217 UP B
+81 UP
+32 LEFT
+52 UP B
+30 UP
+28 RIGHT
+3 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+13
+27 LEFT
+14 UP B
+78 UP
+32 RIGHT
+31 UP
+28 LEFT
+12
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+15 RIGHT
+78 UP
+67 UP B
+80 UP
+65 UP B
+78 UP
+65 UP B
+78 UP
+32 LEFT
+14 UP B
+78 UP
+32 RIGHT
+27 UP B
+62 UP
+6
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+1
+12 UP
+32 LEFT
+66 UP B
+32 RIGHT
+14 UP
+63 UP B
+78 UP
+65 UP B
+36 RIGHT
+63 UP B
+2
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+2
+149 UP B
+79 UP
+30 LEFT
+14 UP B
+78 UP
+32 RIGHT
+27 UP B
+30 UP
+17
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+76 UP
+64 UP B
+33 RIGHT
+13 UP B
+29 LEFT
+78 UP
+32 RIGHT
+32 UP
+54 RIGHT
+6
+6 A
+18
+6 A
+18
+6 A
+18
+6 A
+18
+6 A
+18
+6 A
+3
+27 RIGHT
+12
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+66 UP
+65 UP B
+78 UP
+32 RIGHT
+52 UP B
+81 UP
+32 LEFT
+13 UP
+33 RIGHT
+13
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+78 UP
+172 UP B
+87 UP
+7
+6 A
+13
+1 R
+4
+77 LEFT
+1 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+4 A
+78 UP
+65 UP B
+79 UP
+30 LEFT
+65 UP B
+32 LEFT
+78 UP
+184 UP B
+82 UP
+17 LEFT
+9
+1 R
+101 UP B
+80 UP
+32 LEFT
+14 UP
+32 RIGHT
+1
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+1
+12 UP
+33 LEFT
+13 UP B
+47 UP
+9
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+22 LEFT
+46 UP
+13
+6 A
+18
+1 A
+10
+4 DOWN
+9
+4 A
+9
+4 DOWN
+9
+4 DOWN
+9
+4 DOWN
+9
+4 DOWN
+9
+4 A
+9
+4 A
+9
+4 DOWN
+9
+4 A
+9
+4 SELECT
+46 RIGHT
+13 UP
+32 RIGHT
+14 UP
+14
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+21 LEFT
+14 UP
+64 UP B
+79 UP
+30 RIGHT
+44 UP B
+4
+1 R
+4
+93 UP B
+78 UP
+9
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+77 UP
+65 UP B
+78 UP
+5
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+7
+17 LEFT
+78 UP B
+29 RIGHT
+78 UP
+148 UP B
+1
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+6
+43 UP B
+17 UP
+28 LEFT
+195 UP B
+27 UP
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+5
+73 UP
+13
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+1
+73 UP
+65 UP B
+32 LEFT
+27 UP B
+26 RIGHT
+78 UP
+32 LEFT
+31 UP
+55 RIGHT
+7
+6 A
+1
+13 UP B
+29 UP
+33 LEFT
+14
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+17
+26 LEFT
+6 A
+18
+1 A
+27 LEFT
+1 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+3 A
+78 UP
+65 UP B
+78 UP
+32 LEFT
+13 UP B
+47 UP
+28 RIGHT
+16
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+1
+76 UP
+14
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+6
+98 UP B
+29 RIGHT
+13 UP
+147 UP B
+5
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+9
+1 R
+8
+42 UP B
+32 LEFT
+389 UP B
+19 RIGHT
+14 UP
+32 LEFT
+78 UP B
+29 RIGHT
+13 UP
+33 LEFT
+65 UP B
+46 UP
+28 RIGHT
+3 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+9
+78 UP
+65 UP B
+78 UP
+5
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+68 UP
+65 UP B
+32 UP
+32 RIGHT
+3
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+24 RIGHT
+66 UP B
+31 LEFT
+78 UP
+65 UP B
+36 LEFT
+17 UP B
+36 RIGHT
+89 UP
+36 LEFT
+52 UP B
+30 UP
+28 RIGHT
+2 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+27 RIGHT
+13 UP
+33 LEFT
+37 UP B
+15 LEFT
+14 UP
+32 RIGHT
+65 UP B
+28 RIGHT
+14 UP
+1 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+1
+77 UP
+64 UP B
+79 UP
+32 LEFT
+13 UP
+17
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+6
+70 UP
+64 UP B
+18 UP
+28 LEFT
+40 UP B
+17 UP
+28 RIGHT
+13 UP B
+29 UP
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+6
+27 LEFT
+78 UP B
+30 RIGHT
+78 UP
+65 UP B
+78 UP
+17
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+70 UP
+64 UP B
+18 UP
+36 RIGHT
+17 UP B
+82 UP
+1
+6 A
+11
+1 R
+1
+77 RIGHT
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+7
+78 UP
+65 UP B
+32 RIGHT
+146 UP B
+78 UP
+36 RIGHT
+31 UP B
+18 UP
+5
+1 R
+3
+26 UP
+3 A
+18
+6 A
+1
+14 UP
+3
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+17
+70 UP
+64 UP B
+79 UP
+5
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+18
+16 RIGHT
+78 UP B
+29 LEFT
+392 UP B
+16 RIGHT
+14 UP
+32 LEFT
+78 UP B
+29 LEFT
+13 UP
+65 UP B
+78 UP
+33 RIGHT
+52 UP B
+26 LEFT
+13 UP B
+32 RIGHT
+78 UP B
+46 UP
+9
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+17
+26 RIGHT
+78 UP
+65 UP B
+32 RIGHT
+78 UP
+184 UP B
+29 RIGHT
+78 UP
+65 UP B
+9
+4 SELECT
+8
+4 A
+8
+4 A
+8
+4 A
+8
+4 SELECT
+4 UP
+3 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+5
+91 UP B
+68 RIGHT
+17 UP B
+177 UP
+483
+31 RIGHT
+54 UP
+35 RIGHT
+1 R
+5
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+6
+6 A
+5
+1 R
+49
+4 SELECT
+10
+4 RIGHT
+10
+4 UP
+10
+4 A
+10
+4 A
+10
+4 A
+10
+4 A
+10
+4 SELECT
+1
+194 UP B
+80 UP
+65 UP B
+78 UP
+65 UP B
+78 UP
+32 LEFT
+27 UP B
+44 UP
+33 RIGHT
+16
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+3 A
+24 LEFT
+27 UP B
+56 RIGHT
+14 UP
+63 UP B
+79 UP
+4 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+73 UP
+64 UP B
+33 LEFT
+52 UP B
+26 RIGHT
+78 UP
+65 UP B
+32 RIGHT
+39 UP B
+13 UP
+14
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+14
+18 RIGHT
+14 UP B
+78 UP
+32 RIGHT
+14 UP B
+78 UP
+11
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+75 UP
+65 UP B
+79 UP
+62 UP B
+33 RIGHT
+65 UP B
+2
+1 R
+1
+137 RIGHT
+170 UP B
+78 UP
+33 RIGHT
+52 UP B
+80 UP
+11
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+6
+79 UP
+71 UP B
+79 UP
+31 LEFT
+52 UP B
+80 UP
+65 UP B
+32 LEFT
+27 UP B
+80 UP
+33 RIGHT
+13 UP B
+78 UP
+13
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+17
+22 LEFT
+78 UP B
+30 UP
+16
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+27 RIGHT
+46 UP
+32 LEFT
+5 A
+18
+1 A
+27 RIGHT
+13 UP B
+78 UP
+65 UP B
+32 LEFT
+40 UP B
+28 RIGHT
+46 UP
+33 LEFT
+13 UP B
+29 RIGHT
+13 UP
+200 UP B
+29 UP
+32 RIGHT
+17
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+7
+107 UP
+32 RIGHT
+14 UP
+59 RIGHT
+16
+6 A
+18
+1 A
+24 RIGHT
+14 UP B
+32 LEFT
+66 UP B
+12 UP
+1 A
+18
+6 A
+18
+1 A
+25 LEFT
+13 UP B
+78 UP
+33 LEFT
+31 UP
+28 RIGHT
+7
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+7
+20 LEFT
+45 UP
+33 LEFT
+10
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+15
+44 RIGHT
+8
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+6
+18 LEFT
+184 UP B
+16 UP
+65 UP B
+32 LEFT
+65 UP B
+78 UP
+32 LEFT
+13 UP
+33 RIGHT
+5
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+73 UP
+64 UP B
+79 UP
+64 UP B
+78 UP
+65 UP B
+78 UP
+32 RIGHT
+53 UP B
+80 UP
+65 UP B
+78 UP
+2
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+1
+71 UP
+63 UP B
+79 UP
+32 LEFT
+46 UP
+4
+1 R
+3
+124 RIGHT
+13 UP
+9
+1 R
+4
+73 UP
+5 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+5
+74 UP
+65 UP B
+78 UP
+32 LEFT
+32 UP
+28 RIGHT
+17
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+10
+23 RIGHT
+13 UP B
+62 UP
+32 RIGHT
+4 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+27 LEFT
+27 UP B
+62 UP
+28 LEFT
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+11
+27 LEFT
+78 UP
+65 UP B
+32 LEFT
+133 UP B
+32 LEFT
+78 UP
+65 UP B
+79 UP
+30 RIGHT
+13 UP B
+30 LEFT
+17 UP B
+78 UP
+71 UP B
+84 UP
+32 RIGHT
+14 UP
+32 LEFT
+2
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+6
+25 RIGHT
+13 UP
+33 LEFT
+78 UP B
+29 LEFT
+78 UP
+64 UP B
+78 UP
+32 LEFT
+120 UP B
+28 LEFT
+14 UP
+32 RIGHT
+13
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+3 A
+78 UP
+65 UP B
+78 UP
+65 UP B
+32 LEFT
+14 UP
+63 UP B
+33 RIGHT
+1
+6 A
+18
+1 A
+25 LEFT
+14 UP
+32 RIGHT
+14 UP B
+29 UP
+59 RIGHT
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+2 A
+22 RIGHT
+14 UP
+68 UP B
+89 UP
+26 LEFT
+40 UP B
+28 RIGHT
+14 UP B
+79 UP
+63 UP B
+17 UP
+28 LEFT
+350 UP B
+28 LEFT
+46 UP
+32 RIGHT
+13 UP
+1
+6 A
+18
+6 A
+18
+1 A
+48 RIGHT
+373 UP B
+25 LEFT
+13 UP
+32 RIGHT
+224 UP B
+29 RIGHT
+14 UP
+63 UP B
+80 UP
+30 LEFT
+52 UP B
+26 RIGHT
+18 UP B
+89 UP
+63 UP B
+16 UP
+34 RIGHT
+32 UP B
+31 UP
+64 RIGHT
+11
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+2 A
+16 RIGHT
+14 UP
+64 UP B
+18 UP
+28 RIGHT
+14 UP B
+78 UP
+64 UP B
+78 UP
+33 LEFT
+27 UP B
+44 UP
+32 RIGHT
+16
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+2 A
+25 LEFT
+13 UP
+33 RIGHT
+65 UP B
+32 RIGHT
+78 UP
+64 UP B
+191 UP
+1 R
+3
+77 RIGHT
+14 UP
+32 RIGHT
+14 UP B
+32 RIGHT
+13 UP
+33 LEFT
+52 UP B
+30 UP
+12
+6 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+2 A
+70 UP
+65 UP B
+78 UP
+32 LEFT
+14 UP B
+30 RIGHT
+17 UP B
+32 LEFT
+27 UP B
+44 UP
+3 A
+18
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+2
+75 UP
+22 UP B
+9
+1 R
+71 RIGHT
+13 UP B
+79 UP
+32 RIGHT
+13 UP
+35 LEFT
+3
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+19
+5 A
+6
+75 UP
+65 UP B
+8
+4 SELECT
+8
+4 A
+8
+4 A
+8
+4 A
+8
+4 SELECT
+24 RIGHT
+36 UP B
+60 DOWN B
+2
+17 LEFT
+6
+1 R
+46
+1 A
+1
+1 A
+1
+1 A
+65
+1 A
+1
+1 A
+1
+1 A
+64
+1 A
+1
+1 A
+1
+1 A
+24
+57 LEFT
+59
+1 A
+1
+1 A
+1
+1 A
+64
+1 A
+1
+1 A
+1
+1 A
+110
+1 A
+60
+1 A
+1
+1 A
+1
+1 A
+64
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+60
+1 A
+1
+1 A
+1
+1 A
+64
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+60
+1 A
+1
+1 A
+1
+1 A
+82
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+61
+1 A
+1
+1 A
+1
+1 A
+64
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+60
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+60
+1 A
+1
+1 A
+1
+1 A
+22
+1 R
+41
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+5
+1 R
+35
+1 A
+1
+1 A
+61
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+122
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+64
+1 A
+1
+1 A
+1
+1 A
+113
+1 A
+1
+1 A
+1
+1 A
+64
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+64
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+60
+1 A
+1
+1 A
+1
+1 A
+64
+1 A
+1
+1 A
+61
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+64
+1 A
+1
+1 A
+1
+2 A
+1
+1 A
+1
+1 A
+60
+1 A
+1
+1 A
+1
+1 A
+64
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+61
+1 A
+1
+1 A
+1
+1 A
+65
+1 A
+1
+1 A
+60
+1 A
+1
+1 A
+61
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+64
+1 A
+1
+1 A
+5
+1 R
+55
+1 A
+1
+1 A
+1
+1 R
+1 A
+61
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+123
+1 A
+1
+1 A
+1
+1 A
+100
+1 A
+61
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+60
+18 LEFT
+59
+1 A
+1
+1 A
+1
+1 A
+60
+1 A
+1
+1 A
+146
+13 RIGHT
+167
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+65
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+60
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+60
+1 A
+1
+1 A
+1
+1 A
+1
+1 A
+25

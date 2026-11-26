@@ -1,0 +1,79 @@
+# Clean-boot alternate route for PCM 06 (knife) and 01 (Leon defeated).
+1200 system-menu
+8 select-cartridge @2,2
+120 opening-1
+240 opening-2
+360 opening-3
+480 opening-4
+1200 title-idle
+8 title-a A
+120 after-title
+8 second-a A
+45 ready
+14 turn RIGHT
+30 ready C
+25 fire0 C A
+25 ready0 C
+25 fire1 C A
+25 ready1 C
+25 fire2 C A
+25 ready2 C
+25 fire3 C A
+25 ready3 C
+25 fire4 C A
+25 ready4 C
+25 fire5 C A
+25 ready5 C
+25 fire6 C A
+25 ready6 C
+25 fire7 C A
+25 ready7 C
+25 fire8 C A
+25 ready8 C
+25 fire9 C A
+25 ready9 C
+25 fire10 C A
+25 ready10 C
+25 fire11 C A
+25 ready11 C
+60 release-weapon
+10 open D
+40 status
+8 knife @11,3
+30 selected-knife
+8 select2 @11,3
+30 commands-knife
+8 use @7,3
+40 confirm-knife
+8 yes @6,9
+40 equipped-knife
+8 close D
+50 wait
+24 attack A
+46 wait
+24 attack A
+46 wait
+24 aim C
+48 wait
+24 attack A
+46 wait
+24 attack A
+46 wait
+24 aim C
+48 wait
+24 attack A
+46 wait
+24 attack A
+46 wait
+24 aim C
+48 wait
+24 attack A
+46 wait
+24 attack A
+46 wait
+24 aim C
+48 wait
+140 move UP B
+700 approach UP B
+1200 waiting
+2000 waiting

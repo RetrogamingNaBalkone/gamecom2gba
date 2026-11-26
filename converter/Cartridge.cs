@@ -17,34 +17,43 @@ internal sealed class Cartridge
         this.expectedHash = expectedHash;
     }
 
-    byte[] Identify(Stream source, long size)
+    static byte[] Identify(Stream source, int size, Cartridge[] supported, out Cartridge identified)
     {
-        if (size != expectedSize) throw new InvalidDataException("Unsupported cartridge size.");
+        identified = null;
         using (var reader = new BinaryReader(source))
         using (var sha = SHA256.Create())
         {
-            var data = reader.ReadBytes(expectedSize);
-            if (data.Length != expectedSize || source.ReadByte() != -1 ||
-                BitConverter.ToString(sha.ComputeHash(data)).Replace("-", "").ToLowerInvariant() != expectedHash)
-                throw new InvalidDataException("Unsupported cartridge SHA-256. Expected " + title + ".");
-            return data;
+            var data = reader.ReadBytes(size);
+            if (data.Length != size || source.ReadByte() != -1) return null;
+            var hash = BitConverter.ToString(sha.ComputeHash(data)).Replace("-", "").ToLowerInvariant();
+            identified = supported.FirstOrDefault(c => c.expectedSize == size && c.expectedHash == hash);
+            return identified == null ? null : data;
         }
     }
 
-    internal byte[] Open(string path)
+    internal static byte[] Open(string path, out Cartridge identified, params Cartridge[] supported)
     {
+        identified = null;
         using (var file = File.OpenRead(path))
         {
             if (!String.Equals(Path.GetExtension(path), ".zip", StringComparison.OrdinalIgnoreCase))
-                return Identify(file, file.Length);
+            {
+                if (!supported.Any(c => c.expectedSize == file.Length))
+                    throw new InvalidDataException("Unsupported cartridge size.");
+                var data = Identify(file, (int)file.Length, supported, out identified);
+                if (data != null) return data;
+                throw new InvalidDataException("Unsupported cartridge SHA-256.");
+            }
             using (var zip = new ZipArchive(file, ZipArchiveMode.Read))
             {
-                var candidates = zip.Entries.Where(e => e.Length == expectedSize).ToArray();
-                foreach (var entry in candidates)
+                foreach (var entry in zip.Entries.Where(e => supported.Any(c => c.expectedSize == e.Length)))
                     using (var stream = entry.Open())
-                        try { return Identify(stream, entry.Length); }
-                        catch (InvalidDataException) { continue; }
-                throw new InvalidDataException("ZIP contains no supported " + title + " cartridge.");
+                    {
+                        var data = Identify(stream, (int)entry.Length, supported, out identified);
+                        if (data != null) return data;
+                    }
+                throw new InvalidDataException("ZIP contains no supported cartridge. Expected " +
+                    String.Join(" or ", supported.Select(c => c.title)) + ".");
             }
         }
     }
