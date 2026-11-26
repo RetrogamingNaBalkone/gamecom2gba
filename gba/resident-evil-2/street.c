@@ -231,6 +231,19 @@ static void draw_actor(const struct Re2Actor *a)
     unsigned flip=frame[1]&64;
     int x=a==&player?walk_display.x:a->x;
     int left=x-(flip?pose[2]:pose[0]), top=a->y-pose[1];
+    /* Bank 21 uses markers 81/82 to project the two intermediate poses.
+     * The logical foot position changes only when frame 3 lands. */
+    if ((frame[0]==0x81 || frame[0]==0x82) && (a->frame==1 || a->frame==2)) {
+        int previous=(int)a->depth+(frame[0]==0x81?-1:1);
+        if ((unsigned)previous<3) {
+            int end_x=re2_project_x(re2_progress[0x208],camera,a->x,previous,a->depth);
+            int dx=end_x-a->x;
+            int step_x=(int)((unsigned)(dx<0?-dx:dx)/3);
+            left+=(dx<0?-step_x:step_x)*(int)a->frame;
+            int step_y=(a->depth==2 || previous==2)?8:10;
+            top+=(previous<(int)a->depth?-step_y:step_y)*(int)a->frame;
+        }
+    }
     for (int i=(int)pose[3]-1;i>=0;--i) {
         const uint8_t *part=pose+4+8*i, *g=data+word(part+4);
         int w=*(const uint16_t *)g,h=*(const uint16_t *)(g+2);
@@ -353,6 +366,24 @@ int re2_actor_delta(const struct Re2Actor *a)
     return s==data || !word(s)?0:(int8_t)s[4+8*a->frame];
 }
 
+/* The landing pose uses the destination coordinates on the same tick. */
+static void advance_depth_step(struct Re2Actor *actor, int inward)
+{
+    re2_actor_advance(actor);
+    if (actor->frame==3) {
+        unsigned previous=inward?actor->depth-1:actor->depth+1;
+        actor->x=re2_project_x(re2_progress[0x208],camera,actor->x,previous,actor->depth);
+        actor->y=lane_y[actor->depth];
+    }
+}
+
+static void player_stand(void)
+{
+    unsigned pose=player.health<=30?0x10:player.health<=60?8:0;
+    re2_actor_action(&player,pose+player.facing);
+    re2_actor_advance(&player);
+}
+
 static unsigned clock_now(void)
 {
     return *(volatile uint16_t *)0x04000108;
@@ -371,14 +402,14 @@ unsigned re2_actor_random(unsigned limit)
 static void actor_audio(void)
 {
     int zombies=0;
-    for (unsigned i=0;i<3;++i) {
-        struct Re2Actor *e=&foes[i];
+    for (unsigned i=3;i>0;--i) {
+        struct Re2Actor *e=&foes[i-1];
         if (!e->kind) continue;
         const uint8_t *s=sequence(e);
         if (s==data || !word(s)) continue;
         unsigned cue=s[4+8*e->frame+(e->health?2:3)];
         if (cue) re2_sound(cue);
-        if (e->kind<=3) zombies=1;
+        if (e->kind==1 || e->kind==3) zombies=1;
     }
     if (zombies && re2_actor_random(100)==84) re2_sound(10);
 }
@@ -484,7 +515,7 @@ static void weapon(void)
     unsigned dir=player.facing;
     unsigned weapon_id=re2_inventory_state.weapon;
     unsigned knife=weapon_id==1;
-    unsigned ready=(knife?8:weapon_id==2?0x28:0x18)+dir;
+    unsigned ready=(knife?0x20:weapon_id==2?0x28:0x18)+dir;
     unsigned equip=(knife?0x38:weapon_id==2?0x40:0x30)+dir;
     unsigned fire=(knife?0x50:weapon_id==2?0x58:0x48)+dir;
     if (player.action==fire) {
@@ -612,57 +643,60 @@ static void update_player(unsigned held)
         }
         return;
     }
+    if (player.action>=0x6a && player.action<=0x6d && player.frame) {
+        advance_depth_step(&player,player.action==0x6a || player.action==0x6d);
+        return;
+    }
     if ((armed && !(held&(16|32|64|128))) || (player.action>=0x30 && player.action<0x60)) {
         weapon();
         return;
     }
     if (held&(16|32)) {
         player.facing=(direction+((held&16)?1:7))&7;
-        re2_actor_action(&player,player.facing);
+        player_stand();
         return;
     }
     if (!(held&(64|128))) {
         if (armed) weapon();
-        else re2_actor_action(&player,direction);
+        else player_stand();
         return;
     }
     if (direction&1) {
         /* Finish the turn to a cardinal heading before walking. */
         player.facing=direction==1 || direction==7 ? 0 : 4;
-        re2_actor_action(&player,player.facing);
+        player_stand();
         return;
     }
     unsigned forward=(held&128)?(direction^4):direction;
     if (forward==0 || forward==4) {
         int next=(int)player.depth+(forward==0?1:-1);
-        if (player.action!=0x6a && player.action!=0x6b) {
-            if (next<0 || next>2) {
-                int edge=forward==0?94:157;
-                /* 23:6016 requests the step before the move replaces the
-                 * active pose with the destination camera's standing pose. */
-                if (move(forward,0,edge-player.y)==2 && !re2_audio_active()) re2_sound(13);
-                return;
-            }
-            player.depth=(unsigned)next;
-            re2_actor_action(&player,forward==0?0x6a:0x6b);
+        if (next<0 || next>2) {
+            int edge=forward==0?94:157;
+            if (move(forward,0,edge-player.y)==2 && !re2_audio_active()) re2_sound(13);
+            return;
         }
+        unsigned previous=player.depth;
+        int x=re2_project_x(re2_progress[0x208],camera,player.x,previous,next);
+        player.depth=(unsigned)next;
+        store_player();
+        if (re2_campaign_move(forward,x-player.x,lane_y[next]-player.y)) {
+            player.depth=previous;
+            re2_actor_action(&player,direction);
+            return;
+        }
+        re2_actor_action(&player,0x6a+(direction==4)+((held&128)?2:0));
         re2_actor_advance(&player);
-        if (player.frame==3) {
-            unsigned previous=forward==0?player.depth-1:player.depth+1;
-            int x=re2_project_x(re2_progress[0x208],camera,player.x,previous,player.depth);
-            int blocked=move(forward,x-player.x,lane_y[player.depth]-player.y);
-            if (blocked==1) {
-                player.depth=previous;
-                re2_actor_action(&player,direction);
-            }
-        }
-        if (!player.frame) re2_actor_action(&player,direction);
         return;
     }
-    unsigned action=(held&2?0x68:0x60)+(forward==6);
+    unsigned action=(held&128)?0x62:0x60;
+    if (player.health<=60) action+=4;
+    else if ((held&2) && action==0x60) action=0x68;
+    action+=(direction==6);
     re2_actor_action(&player,action);
-    if (!re2_audio_active()) re2_sound(13);
     int delta=re2_actor_advance(&player);
+    /* A camera transition replaces the pose before the general sound check. */
+    if (!re2_audio_active() && (action<0x64 || action>=0x68 || (player.frame&1)))
+        re2_sound(13);
     move(forward,delta,0);
 }
 
@@ -835,12 +869,19 @@ static void update_enemy(struct Re2Actor *enemy)
         return;
     }
     if (enemy->action==0x0e || enemy->action==0x0f) {
-        re2_actor_advance(enemy);
+        advance_depth_step(enemy,enemy->action==0x0e);
         if (!enemy->frame) {
-            enemy->y=lane_y[enemy->depth];
+            /* The four side turns in bank 22 precede horizontal pursuit. */
+            unsigned turn=enemy->facing==0?4:8;
             enemy->facing=dx>=0?2:6;
-            re2_actor_action(enemy,dx>=0?0x15:0);
+            re2_actor_action(enemy,turn+(dx>=0));
+            enemy->x+=re2_actor_delta(enemy);
         }
+        return;
+    }
+    if ((enemy->action==4 || enemy->action==5 || enemy->action==8 || enemy->action==9) &&
+        enemy->frame+1<word(sequence(enemy))) {
+        enemy->x+=re2_actor_advance(enemy);
         return;
     }
     if (range>30 || enemy->depth!=player.depth) {
@@ -955,6 +996,7 @@ void re2_street_tick(unsigned held,unsigned pressed)
     }
     do {
         elapsed-=hold;
+        actor_audio();
         follow_cached_boss();
         if (--player_delay==0) {
             int old_x=player.x;
@@ -969,8 +1011,7 @@ void re2_street_tick(unsigned held,unsigned pressed)
             if (player.action>=0x80 && player.action<=0x87 && player.frame==1)
                 re2_sound(1);
             if (camera==old_camera && old_x!=player.x &&
-                (player.action==0x60 || player.action==0x61 ||
-                 player.action==0x68 || player.action==0x69)) {
+                (player.action>=0x60 && player.action<=0x69)) {
                 unsigned fast=hold<15000;
                 unsigned periods=player_delay==2?(fast?7:9):
                     player_delay==3?(fast?10:13):(fast?13:18);
@@ -987,7 +1028,15 @@ void re2_street_tick(unsigned held,unsigned pressed)
                 update_enemy(&foes[i]);
             }
         }
-        actor_audio();
+        /* 22:76CF checks the jumping enemy's approach independently of its
+         * animation cue table. It is the first encounter actor only. */
+        const struct Re2Actor *jumper=&foes[0];
+        if (jumper->kind==9 && jumper->health && player.depth==jumper->depth &&
+            (player.action<0x6a || player.action>0x6d)) {
+            static const uint8_t reach[]={50,45,40};
+            int distance=jumper->facing==6?jumper->x-player.x:player.x-jumper->x;
+            if (distance>=20 && distance<=reach[player.depth]) re2_sound(12);
+        }
         if (grabbed || struck) snap_walk();
         hold=re2_audio_active()?19531u:14746u;
     } while (elapsed>=hold);

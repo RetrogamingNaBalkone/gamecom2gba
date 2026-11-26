@@ -23,6 +23,28 @@ The tool writes a PNG and a raw shade-array SHA-256 for each checkpoint, a per-f
 
 Independent runs from the same street state distinguish aiming, firing and inventory. Two short C+A attempts while aiming consumed one round by the observation point (17 loaded, 45 in reserve). The same C+B tape left 18 loaded and 45 in reserve. Original RAM $0295 and $0296 store these quantities as binary integers.
 
+In Tigerbyte with the US cartridge and in mGBA with the port, Leon started in his initial position on the first street screen, with 18 rounds loaded and 45 in reserve. C on game.com and R on GBA raised the handgun. After one shot and release of C or R, Leon stayed in the aiming pose with 17 rounds loaded. Pressing A by itself fired again, leaving 16. A second press of C or R lowered the handgun. Pressing A again left the ammunition count at 16.
+
+## Walking toward and away from the camera
+
+In the first street camera, Leon starts at X=100, Y=155, facing the screen. Holding Down takes him backwards through Y=123 to Y=97. Releasing Down and holding Up brings him back across both planes. A second route turns Leon away from the screen, releases Up during the first step, then uses Down to return. In Tigerbyte the step finishes after release. The cartridge selects actions 6A/6B for forward steps and 6C/6D for backward steps.
+
+The cartridge renderer at `21:6715` interprets frame markers 81 and 82 as perspective movement. The first two poses shift by 10 and 20 pixels vertically between the near and middle planes, or by 8 and 16 pixels between the middle and far planes. The third pose lands at the new position. The previous GBA build drew both intermediate poses at the starting coordinates and used forward-facing movement sequences when backing up. On the rebuilt ROM, the 27-by-119-pixel crop around Leon matches the Tigerbyte LCD at all 18 sampled poses in mGBA. The regression runs in `scripts/resident-evil-2/reference/test_gameplay.py`. Physical GBA verification is pending.
+
+## Backsteps, wounds, knife stance and zombie landings
+
+Controlled probes start in the first street camera. Tigerbyte and mGBA use X=100, Y=155 for Leon. The zombie probes put the first zombie at X=60 so the horizontal part of perspective movement is visible. Coordinates below are in game.com screen pixels.
+
+| Starting state and input | US cartridge | Previous GBA behaviour |
+| --- | --- | --- |
+| Facing right, full health, hold Down and B | Backs left while facing right (action 62). The first three steps reach X=92, 82 and 72. Facing left, Down selects 63 and moves right. | Used a forward walk or run facing the direction of travel. |
+| Facing right, 60 HP, idle then Up and B | Idle 0A alternates two poses. Injured walk 64 reaches X=108, 111 and 118. | Healthy standing pose followed by a run. |
+| Facing left, 30 HP, idle then Down | Idle 16 alternates two poses. Backstep 67 reaches X=108, 111 and 118. | Healthy standing pose followed by a forward walk. |
+| Facing right, knife equipped, raise weapon | Draw 3A ends in knife stance 22. | Draw ended in injured idle pose 0A. |
+| Zombie shifting one plane at X=60 | Frame 3 of action 0E lands at (64,123) from the near plane. Frame 3 of 0F lands at (56,155) from the middle plane. | X stayed at 60 and Y changed after the last landing pose. |
+
+Bank 23 selects backsteps at `63A4` and applies the 60 and 30 HP thresholds at `6A86`. The knife stance is in the 20-27 range. The zombie sequences use the same 81/82 perspective markers as Leon. The mGBA regression checks the action, frame and position in seven scenarios. It also compares LCD crops for backsteps, injured walking and idle poses, the drawn knife and both zombie landings against Tigerbyte. Zombie pursuit decisions after landing may differ. Physical GBA verification is pending.
+
 ## Inventory and pause
 
 | Original action | Observed result |
@@ -63,6 +85,6 @@ The cartridge route uses the first police typewriter at display period 28958, de
 
 `python scripts/resident-evil-2/reference/test_gameplay.py --bios-font --campaign` begins with New Game, reaches the first typewriter, cold-boots with its SRAM, selects Load Game, and plays through the return to the title. The campaign replay uses the recorded buttons in `campaign-gba.txt`; it reads emulated RAM to verify rooms, acquired keys, the ending and the clear-time record. Input lines hold the listed buttons for the stated number of display periods. An empty button list releases the controls.
 
-The verified BIOS-font build has SHA-256 `1dd64118f147e7d87da96761b3a8d11a4043b0403b237beda4331da4058c4422`. The typewriter was reached at display period 11281 from a clean boot, showing 00:02:24. After the cold boot and load, Leon defeated the crocodile and reached the final encounter in 04:6B at period 81319 with 80 HP. The handgun reduced the 125-HP enemy to zero. The ending displayed a clear time of 00:20:27, removed TIME at slot 30 on period 86098, and returned to the title at period 86452. The complete THE END image at slot 33 matched the original SHA-256 `84ac973156d3f3169e420eaae99511607d3a879292acecf68d8adda3600b1b3c` across all 32,000 LCD pixels. The replay also checked the recorded clear time in SRAM. Period counts start at each boot.
+The verified BIOS-font build has SHA-256 `176520bd926a6a989b57686c5b6c85fb6919b8ac7a7d88ee00b423ac71978baa`. The typewriter was reached at display period 18411 from a clean boot, showing 00:03:56. After the cold boot and load, Leon defeated the crocodile at period 64386 and reached the final encounter in 04:6B at period 86768 with 80 HP. The handgun reduced the 125-HP enemy to zero. The ending displayed a clear time of 00:23:11, removed TIME at slot 30 on period 92300, and returned to the title at period 92654. The complete THE END image at slot 33 matched the original SHA-256 `84ac973156d3f3169e420eaae99511607d3a879292acecf68d8adda3600b1b3c` across all 32,000 LCD pixels. The replay also checked the recorded clear time in SRAM. Period counts start at each boot.
 
 To regenerate the tape after an engine change, run `python scripts/resident-evil-2/reference/generate_campaign.py`. Its default output is `build/resident-evil-2/campaign-gba.txt`. The pilot reads room, pose, carried items and puzzle flags, then sends ordinary D-pad and button presses. The waypoint file covers the specific audited route. At the final encounter the generator explores button sequences using mGBA snapshots. It writes a tape only after a separate run replays those buttons from the ordinary SRAM save, matches THE END to Tigerbyte and returns to the title.

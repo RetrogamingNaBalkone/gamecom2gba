@@ -32,6 +32,16 @@ To reproduce the original sample and music activity trace for the opening, run `
 
 A separate 15,708-frame idle trace recorded sample 18 at frames 1,838, 4,255, 7,658 and 11,061. The clean-boot route to the police-station save also completed 28,958 frames with zero pitch writes, wave-channel enables or score enables.
 
+Use `trace-sound.py --calls` with the same input tapes to include rejected requests, the caller's return address, the current PCM priority and the game state. The arguments and IDs in the trace are hexadecimal except for the frame. At `21:7122`, the cartridge accepts an idle request or replaces the current sample when the new ID is lower.
+
+| Event | PCM IDs and source |
+|---|---|
+| Opening | `12` at the first scene sound slot. `20:47ED` also requests `12` over slot `91` in the first opening and `96` in the attract loop. |
+| Title and pause code | `0F` for the title selection change and `10` for confirmation. The pause-code success path at `21:71DA` also requests `10`. |
+| Inventory | The state comparison at `23:7492` requests `0F` after a selection or panel change, including touch commands and the initial pickup question. It requests `10` on the cartridge's A-button confirmation path, used for pickups and entry into the storage selection. A separate twelve-document replay recorded no new PCM calls inside the FILE reader. |
+| Leon | `23:7181` and `23:71F2` select `05` for the handgun, `04` for the shotgun, `06` for the knife, `03` for pumping the shotgun, `0D` for steps and `01` for defeat. The empty magazine and automatic reload handlers also request `03`. |
+| Enemies | `20:48D8` visits actor records in reverse slot order before gameplay updates and reads each action's live/dead frame masks. The same routine can request `0A` for a zombie. The jumping enemy also has a separate `0C` approach cue at `22:7731`. The crocodile's cylinder animation uses `04` and can restart PCM with `04` or `05` through the random branch at `22:6F48`. |
+
 ## Campaign and saves
 
 The camera directory at `28:8000` has seven area entries. Their camera tables have 33, 76, 41, 43, 112, 78 and 37 slots respectively. Each camera record has four big-endian pointers for the background, boundaries in page 33, lane obstacles in page 28 and foreground. Slot 3:1C has a null boundary pointer.

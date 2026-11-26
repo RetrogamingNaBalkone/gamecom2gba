@@ -42,10 +42,9 @@ void re2_audio_tick(void)
     }
 }
 
-void re2_sound(unsigned id)
+void re2_sound_restart(unsigned id)
 {
-    re2_audio_tick();
-    if (!id || id > 24 || (sample_id && sample_id <= id)) return;
+    if (!id || id > 24) return;
     const uint32_t *pcm = (const uint32_t *)((const uint8_t *)samples + samples[id-1]);
     REG16(0x04000102) = 0;
     REG16(0x040000c6) = 0;
@@ -60,4 +59,10 @@ void re2_sound(unsigned id)
     sample_id = id;
     update_rate(0);
     REG16(0x04000102) = 0x80;
+}
+
+void re2_sound(unsigned id)
+{
+    re2_audio_tick();
+    if (!sample_id || sample_id > id) re2_sound_restart(id);
 }

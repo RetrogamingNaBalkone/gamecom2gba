@@ -14,8 +14,11 @@ from capture import decode_tape, staging_directory, unpack, SHA256
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("tape", type=Path, nargs="+")
-    parser.add_argument("--route", action="store_true",
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument("--route", action="store_true",
                         help="log camera changes, persistent campaign flags and the ending instead of individual samples")
+    output.add_argument("--calls", action="store_true",
+                        help="log every sound call with its caller and current priority, including rejected calls")
     args = parser.parse_args()
     tiger = Path(os.environ.get("TIGERBYTE_HOME") or
                  Path(os.environ["LOCALAPPDATA"]) / "Programs/Tigerbyte")
@@ -42,6 +45,8 @@ def main():
             command=[binary,*roms,cart]
             if args.route:
                 command.append("--route")
+            if args.calls:
+                command.append("--calls")
             subprocess.run(command, input=decode_tape(tape)[0], check=True)
 
 

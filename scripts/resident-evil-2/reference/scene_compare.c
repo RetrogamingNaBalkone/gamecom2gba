@@ -11,8 +11,38 @@
 
 static gcsystem_t machine, checkpoint;
 static uint8_t reference[32000], native[32000];
+static unsigned original_cues[16], native_cues[16];
+static unsigned original_count, native_count;
 
-void re2_sound(unsigned id) { (void)id; }
+void re2_sound(unsigned id)
+{
+    if (native_count<16) native_cues[native_count]=id;
+    ++native_count;
+}
+
+static uint8_t scene_bus_read(void *ctx,uint16_t address)
+{
+    if (address==0x7122 && machine.cpu.pc==0x7123 && machine.bus.ram[0x27]==0x21) {
+        unsigned mask=machine.cpu.sys&0x40 ? 0xffff : 0xff;
+        unsigned sp=machine.cpu.sp;
+        if (gcbus_read(ctx,sp)==0x42 && gcbus_read(ctx,(sp+1)&mask)==0xf9 &&
+            gcbus_read(ctx,(sp+2)&mask)==0x21 &&
+            gcbus_read(ctx,(sp+3)&mask)==0x63 && gcbus_read(ctx,(sp+4)&mask)==0x9d) {
+            if (original_count<16)
+                original_cues[original_count]=machine.cpu.reg[(machine.cpu.ps0&0xf8)+3];
+            ++original_count;
+        }
+    }
+    return gcbus_read(ctx,address);
+}
+
+static int cues_match(void)
+{
+    int match=original_count==native_count && native_count<=16 &&
+        !memcmp(original_cues,native_cues,native_count*sizeof(*native_cues));
+    original_count=native_count=0;
+    return match;
+}
 int re2_video_room(const uint8_t *tiles,unsigned count,const uint16_t *map)
 {
     static const uint8_t shades[]={0,4,2,1,0};
@@ -55,6 +85,8 @@ int compare_openings(void)
     const struct Cue *cues[]={opening_1,opening_2};
     const unsigned counts[]={sizeof(opening_1)/sizeof(*opening_1),sizeof(opening_2)/sizeof(*opening_2)};
     unsigned next=0, changed=0;
+    machine.cpu.rd=scene_bus_read;
+    original_count=native_count=0;
     for (unsigned frame=1516;frame<7715;++frame) {
         advance(1,255,255,255,-1,0);
         unsigned i=frame>=start[1];
@@ -67,6 +99,7 @@ int compare_openings(void)
             unsigned slot=cues[i][next++].slot;
             if (machine.bus.ram[0xcd]!=slot || machine.bus.ram[0xcc]!=i+1) return -(int)frame;
             re2_cinema_slot(slot);
+            if (!cues_match()) return -(int)frame;
             changed=frame;
         }
         if (changed && frame==changed+7) {
@@ -126,6 +159,8 @@ int compare_sample(unsigned id,const uint8_t *pcm,unsigned count)
 int compare(unsigned scene)
 {
     machine=checkpoint;
+    machine.cpu.rd=scene_bus_read;
+    original_count=native_count=0;
     uint8_t *state=machine.bus.ram;
     if (scene==40) state[0xc2]|=1;
     else {
@@ -140,12 +175,13 @@ int compare(unsigned scene)
         if (machine.cpu.trapped) return -1;
         if (state[0xcc]!=scene) {
             if (!cursor) continue;
-            return frame==deadline && !re2_cinema_advance() ? 0 : -2;
+            return frame==deadline && !re2_cinema_advance() && cues_match() ? 0 : -2;
         }
         if (state[0xcd]!=cursor) {
             if (cursor && frame!=deadline) return -3;
             cursor=state[0xcd];
             if (!re2_cinema_advance() || re2_cinema_position()!=cursor) return -4;
+            if (!cues_match()) return -6;
             deadline=frame+scene_frame_holds[hold++];
             changed=frame;
         }

@@ -87,7 +87,7 @@ def main():
             for scene in range(3,41):
                 result=lib.compare(scene)
                 assert result==0,(scene,result)
-            print("38 scene timelines matched. Full-screen cinematic layers matched original displayed pixels.")
+            print("38 scene timelines and PCM cues matched. Full-screen cinematic layers matched original displayed pixels.")
             directory=data.index(struct.pack("<II",44,44+32+19200))
             bank=directory+struct.unpack_from("<I",data,directory+32)[0]
             timelines=[]

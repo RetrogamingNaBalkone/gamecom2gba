@@ -1,6 +1,8 @@
 /* Elapsed 59.732 Hz display periods from the first cartridge picture.
  * Measured with Tigerbyte from cartridge RAM CC/CD during unattended playback. */
 struct Cue { unsigned short time, slot; };
+/* 20:47ED starts the closing cue after slots 145 and 150 respectively. */
+static const unsigned short opening_closing_sound[]={2739,2451};
 static const struct Cue opening_1[] = {
     {322,2}, {342,3}, {363,4}, {384,5}, {404,6}, {424,7}, {444,8}, {465,9},
     {485,10}, {505,11}, {525,12}, {546,13}, {566,14}, {587,15}, {609,16}, {632,17},

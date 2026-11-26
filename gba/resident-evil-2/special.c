@@ -1,4 +1,5 @@
 #include "special.h"
+#include "audio.h"
 #include "inventory.h"
 #include "progress.h"
 
@@ -40,6 +41,14 @@ const uint8_t *re2_switch_picture(unsigned index,int *x,int *y)
 /* The two large actors have independent handlers at 22:7069 and 22:6F81. */
 void re2_final_sense(struct Re2Actor *boss,const struct Re2Actor *player)
 {
+    /* 22:6F48 handles the gas-cylinder explosion separately from the cue table. */
+    if (boss->kind==13 && boss->action==7) {
+        if (!re2_audio_active()) re2_sound(4);
+        else if (re2_actor_random(5)==3) {
+            unsigned roll=re2_actor_random(10);
+            re2_sound_restart(roll<=4?5:4);
+        }
+    }
     if (!boss->health || !player->health) return;
     int range=boss->facing==6?boss->x-player->x:player->x-boss->x;
     if (boss->kind==13) {

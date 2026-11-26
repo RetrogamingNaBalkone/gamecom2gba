@@ -84,7 +84,10 @@ void play(void)
                 last_slot = cues[next++].slot;
                 re2_cinema_slot(last_slot);
             }
-            if (((pressed & 1) && (movie == 2 || last_slot > 0x12)) ||
+            int skip=(pressed & 1) && (movie == 2 || last_slot > 0x12);
+            unsigned closing=opening_closing_sound[movie-1]*ticks_per_frame;
+            if (!skip && time>=closing && time-elapsed<closing) re2_sound(18);
+            if (skip ||
                 time >= ticks_per_frame * (movie == 1 ? 2796u : 2508u)) {
                 mode=TITLE;
                 selected=0;

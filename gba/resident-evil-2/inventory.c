@@ -2,6 +2,7 @@
 #include "video.h"
 #include "progress.h"
 #include "campaign.h"
+#include "audio.h"
 
 #define EWRAM __attribute__((section(".ewram"), aligned(4)))
 enum { A=1,B=2,SELECT=4,RIGHT=16,LEFT=32,UP=64,DOWN=128 };
@@ -348,6 +349,7 @@ void re2_inventory_enter(const uint8_t *assets)
     render();
     cursor();
     pulse();
+    if (screen==PICKUP || screen==REWARD) re2_sound(15);
 }
 
 void re2_pause_enter(const uint8_t *assets)
@@ -432,8 +434,10 @@ static int storage_tick(unsigned pressed)
 {
     if((pressed&SELECT) || ((pressed&B) && !selected_side)) {
         re2_progress[0x270]=0; re2_progress[0x261]=2;
+        re2_sound(15);
         re2_inventory_hide(); return 0;
     }
+    unsigned old_box=box_slot,old_bag=bag_slot,old_side=selected_side;
     if(selected_side) {
         if(pressed&UP && box_slot) --box_slot;
         if(pressed&DOWN && box_slot<12) ++box_slot;
@@ -452,6 +456,8 @@ static int storage_tick(unsigned pressed)
         if(pressed&RIGHT && !(bag_slot&1)) ++bag_slot;
         if(pressed&A) selected_side=1;
     }
+    if (box_slot!=old_box || bag_slot!=old_bag || selected_side!=old_side)
+        re2_sound((pressed&A) && !old_side?16:15);
     if(pressed) { render(); cursor(); }
     return 1;
 }
@@ -462,7 +468,10 @@ int re2_inventory_tick(unsigned held,unsigned pressed)
     if(++ticks>=131) ticks=0;
     if(screen==STORAGE) return storage_tick(pressed);
     if(screen>=PICKUP) {
-        if(pressed&(LEFT|RIGHT)) focus^=1;
+        if(screen==PICKUP && (pressed&(LEFT|RIGHT))) {
+            focus^=1;
+            re2_sound(15);
+        }
         if(pressed&(A|B|SELECT)) {
             re2_inventory_store();
             if(screen==REWARD) {
@@ -470,15 +479,17 @@ int re2_inventory_tick(unsigned held,unsigned pressed)
                 re2_progress[0xd6]&=127;
             } else re2_pickup_confirm(screen==PICKUP && (pressed&A) && !focus);
             re2_inventory_restore();
+            if (screen!=FULL) re2_sound(pressed&A?16:15);
             re2_inventory_hide(); return 0;
         }
         cursor(); pulse(); return 1;
     }
     if(pressed&SELECT || (pressed&B && screen==ITEMS)) {
+        if (screen!=ITEMS || focus!=4 || item) re2_sound(15);
         re2_inventory_hide(); return 0;
     }
     enum Screen old=screen;
-    unsigned old_item=item,old_page=page,old_file=file_id;
+    unsigned old_item=item,old_page=page,old_file=file_id,old_focus=focus;
     if(pressed&B) {
         if(screen==DOCUMENT) screen=FILES;
         else { screen=ITEMS; focus=4+item; }
@@ -488,7 +499,7 @@ int re2_inventory_tick(unsigned held,unsigned pressed)
             if(focus==0) { screen=FILES; file_id=0; }
             else if(focus==1) screen=MAP;
             else if(focus==2) { focus=4; item=0; }
-            else if(focus==3) { re2_inventory_hide(); return 2; }
+            else if(focus==3) { re2_sound(15); re2_inventory_hide(); return 2; }
             else if(slot_item(focus-4)) {
                 if(focus-4==item) {
                     unsigned id=slot_item(item);
@@ -539,6 +550,11 @@ int re2_inventory_tick(unsigned held,unsigned pressed)
         else if(pressed&(DOWN|RIGHT) && page+1<document()[0]) ++page;
         else if(pressed&(UP|LEFT) && page) --page;
     }
+    /* 23:7492 compares the screen and selection fields. The cartridge
+       hands file navigation to a separate reader with no PCM calls. */
+    if (old!=FILES && old!=DOCUMENT &&
+        (old!=screen || old_item!=item || old_focus!=focus))
+        re2_sound(15);
     if(old!=screen || old_item!=item || old_page!=page || old_file!=file_id) render();
     cursor();
     pulse();

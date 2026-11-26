@@ -3,6 +3,7 @@ import argparse
 import ctypes
 import hashlib
 import os
+import struct
 from pathlib import Path
 import sys
 
@@ -18,6 +19,95 @@ A,B,SELECT,UP,DOWN,LEFT,RIGHT,R=8,0,2,4,5,6,7,11  # libretro ids
 def lcd(pixels,x,y,w,h):
     shades=bytes(PALETTE[pixels[row*240+col+20]] for row in range(y,y+h) for col in range(x,x+w))
     return hashlib.sha256(shades).hexdigest()
+
+
+def depth_walk(core,rom):
+    # SHA-256 prefixes of Tigerbyte LCD crops around Leon on the first street.
+    # Each group follows the two intermediate poses and the landing pose.
+    start=[(2092,2100,A),(2197,2200,A)]
+    cases=[
+        ([(2245,2375,DOWN),(2420,2590,UP)], {
+            2255:"c089888733a2e3a1", 2272:"7efe952fe2f4671a", 2288:"562cef7c45447855",
+            2322:"af47a34e8fb8eba1", 2340:"06f61fed935511bd", 2358:"6fefaed936e85c86",
+            2440:"cb99a92ef832047a", 2458:"f8af22a1f22b3e53", 2473:"562cef7c45447855",
+            2505:"1dc9e577375e82c8", 2522:"bb9d8d2630839f31", 2538:"111f1cc66d1f48db"}),
+        ([(2245,2285,LEFT),(2285,2310,UP),(2420,2578,DOWN)], {
+            2312:"613a140899e63fe0", 2327:"67471a57266e1906", 2344:"03bee9857b8878e6",
+            2431:"0719f5c13ae7c3b3", 2448:"d6a7d7f80c51c874", 2465:"f4f41809bc2f42bc"})]
+    for tape,expected in cases:
+        observed={}
+        def pixels(frame,ptr,pitch,step):
+            if frame in expected:
+                raw=b"".join(ctypes.string_at(ptr+y*pitch+108*step,27*step) for y in range(40,159))
+                shades=bytes(PALETTE[c] for c in unpack_colors(raw,1 if step==4 else 2))
+                observed[frame]=hashlib.sha256(shades).hexdigest()[:16]
+        render(core,rom,walk=start+tape,final_frame=max(expected),pixel_probe=pixels)
+        assert observed==expected,(observed,expected)
+    print("Leon matched all 18 depth-walk pose crops in both facings")
+
+
+def actor_poses(core,rom):
+    # Controlled first-street states, in the same room and at the same
+    # coordinates as the Tigerbyte probes. Positions below are logical X/Y.
+    cases=[
+        ("back right",100,2,(DOWN,B),[(0x62,1,92,155),(0x62,2,82,155),(0x62,3,72,155)]),
+        ("back left",100,6,(DOWN,),[(0x63,1,110,155),(0x63,2,118,155),(0x63,3,128,155)]),
+        ("hurt walk",60,2,(UP,B),[(10,1,100,155),(10,0,100,155),(0x64,1,108,155),(0x64,2,111,155)]),
+        ("hurt back",30,6,(DOWN,),[(0x16,1,100,155),(0x16,0,100,155),(0x67,1,108,155),(0x67,2,111,155)]),
+        ("knife",100,2,(R,),[(0x3a,1,100,155),(0x3a,2,100,155),(0x22,0,100,155)]),
+        ("zombie out",100,4,(),[(15,1,60,123),(15,2,60,123),(15,3,56,155),(9,0,56,155)]),
+        ("zombie in",100,4,(),[(14,1,60,155),(14,2,60,155),(14,3,64,123)])]
+    # LCD crop hashes from the same Tigerbyte states.
+    crops={
+        "back right":{(0x62,1):"72dbac0e4fd6c47a"},
+        "back left":{(0x63,1):"27d4ac684a4b4e14"},
+        "hurt walk":{(0x64,1):"a6e211c8ce4165ec",(10,1):"2b513529f64d227d",(10,0):"aaba64ee2616d585"},
+        "hurt back":{(0x67,1):"89cc13215181566e",(0x16,1):"bbc584085e96a587",(0x16,0):"eb2111720e618695"},
+        "knife":{(0x22,0):"78078cf5f5ce83c0"},
+        "zombie out":{(15,1):"d12c741ea8c3fce9",(15,2):"22bec6bbd7b136d9",(15,3):"e5577f821cc5f175"},
+        "zombie in":{(14,1):"1f64040f5d305d86",(14,2):"dda672abfc3758f6",(14,3):"a2120552deeed6e6"}}
+    for name,hp,facing,buttons,expected in cases:
+        zombie=name.startswith("zombie")
+        progress=Progress(bytes.fromhex("01 03 07 00 00 00 01"))
+        observed=[]
+        remaining=dict(crops.get(name,{}))
+        def pixels(frame,ptr,pitch,step):
+            if not observed:return
+            action=observed[-1][:2]
+            if action not in remaining:return
+            x,y,width,height=(42,36,41,122) if zombie else (observed[-1][2]-16,48,33,110)
+            raw=b"".join(ctypes.string_at(ptr+row*pitch+(20+x)*step,width*step) for row in range(y,y+height))
+            shades=bytes(PALETTE[c] for c in unpack_colors(raw,1 if step==4 else 2))
+            if hashlib.sha256(shades).hexdigest()[:16]==remaining[action]:
+                del remaining[action]
+        def probe(frame,memory):
+            if frame<2244:return
+            if frame==2244:
+                base=memory[0x02000000]
+                image=ctypes.string_at(base,262144)
+                def patch_record(signature,values):
+                    signature=struct.pack("<"+"I"*len(signature),*signature)
+                    assert image.count(signature)==1
+                    raw=struct.pack("<"+"I"*len(values),*values)
+                    ctypes.memmove(base+image.index(signature),raw,len(raw))
+                patch_record((2,4,0,4,0,100,155,100),(2,facing,0,facing,0,100,155,hp))
+                enemy=(0,)
+                if zombie:
+                    inward=name=="zombie in"
+                    enemy=(1,0 if inward else 4,int(inward),14 if inward else 15,0,60,155 if inward else 123,25)
+                patch_record((1,0,0,16),enemy)
+                if name=="knife":patch_record((18,45,0),(0,63,1))
+            ram=progress.read(memory)
+            if ram is None or frame<2247:return
+            offset=0x219 if zombie else 0x234
+            x,y,action,phase=ram[offset:offset+4]
+            pose=(action,phase,x,y)
+            if not observed or observed[-1]!=pose:observed.append(pose)
+        tape=[(2092,2100,A),(2197,2200,A)]+[(2272,2370,k) for k in buttons]
+        render(core,rom,walk=tape,final_frame=2360,video_probe=probe,pixel_probe=pixels)
+        assert not remaining,(name,remaining)
+        assert any(observed[i:i+len(expected)]==expected for i in range(len(observed))), (name,observed)
+    print("Matched cartridge poses and coordinates for backing up, injuries, the knife and zombie steps")
 
 
 def menus(core,rom,bios_font=False):
@@ -277,6 +367,8 @@ def main():
     args=p.parse_args()
     core=args.core or next((Path(os.environ["LOCALAPPDATA"])/"Programs/mGBA").glob("libretro-*/mgba_libretro.dll"))
     rom=args.rom.read_bytes()
+    depth_walk(core,rom)
+    actor_poses(core,rom)
     menus(core,rom,args.bios_font)
     save,state=first_checkpoint(core,rom)
     reload_checkpoint(core,rom,save,state)

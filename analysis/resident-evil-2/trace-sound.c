@@ -9,6 +9,39 @@ static unsigned frame;
 static unsigned frequency_writes, active_channels, active_scores;
 static unsigned sample_requests;
 static int log_route;
+static int log_calls;
+
+static unsigned stack_byte(unsigned offset)
+{
+    unsigned mask=machine.cpu.sys&0x40 ? 0xffff : 0xff;
+    return gcbus_read(&machine.bus,(machine.cpu.sp+offset)&mask);
+}
+
+static unsigned stack_word(unsigned offset)
+{
+    return stack_byte(offset)*256+stack_byte(offset+1);
+}
+
+static uint8_t sound_read(void *ctx, uint16_t address)
+{
+    const uint8_t *r=machine.bus.ram;
+    if (address==0x7122 && machine.cpu.pc==0x7123 && r[0x26]==0x20 && r[0x27]==0x21) {
+        unsigned caller=stack_word(0);
+        unsigned bank=r[0x27];
+        if (caller==0x42f9) {
+            caller=stack_word(3);
+            bank=caller<0x6000?r[0x26]:stack_byte(2);
+        }
+        unsigned id=machine.cpu.reg[(machine.cpu.ps0&0xf8)+3];
+        printf("frame=%u request=%02x caller=%02x:%04x priority=%02x room=%02x:%02x "
+               "scene=%02x slot=%02x player=%02x/%02x weapon=%02x inventory=%02x "
+               "foe=%02x/%02x/%02x ui=%02x/%02x/%02x/%02x\n",
+               frame,id,bank,caller,r[0xca],r[0x208],r[0x209],r[0xcc],r[0xcd],
+               r[0x236],r[0x237],r[0x239],r[0x270],r[0x217],r[0x21b],r[0x21c],
+               r[0x261],r[0x26b],r[0x269],r[0x26a]);
+    }
+    return gcbus_read(ctx,address);
+}
 
 static void sound_write(void *ctx, uint16_t address, uint8_t value)
 {
@@ -17,7 +50,7 @@ static void sound_write(void *ctx, uint16_t address, uint8_t value)
     if (r[0x26] != 0x20) return;
     if (address == 0xca && machine.cpu.pc == 0x7136 && r[0x27] == 0x21) {
         if (value<24) sample_requests|=1u<<value;
-        if (!log_route)
+        if (!log_route && !log_calls)
             printf("frame=%u sample=%u scene=%02x slot=%02x\n",frame,value+1,r[0xcc],r[0xcd]);
     }
     if (address >= 0x46 && address <= 0x49) ++frequency_writes;
@@ -27,14 +60,16 @@ static void sound_write(void *ctx, uint16_t address, uint8_t value)
 
 int main(int argc, char **argv)
 {
-    if (argc!=4 && (argc!=5 || strcmp(argv[4],"--route"))) return 2;
-    log_route=argc==5;
+    if (argc!=4 && (argc!=5 || (strcmp(argv[4],"--route") && strcmp(argv[4],"--calls")))) return 2;
+    log_route=argc==5 && !strcmp(argv[4],"--route");
+    log_calls=argc==5 && !strcmp(argv[4],"--calls");
     gcsystem_init(&machine);
     if (gcsystem_load_internal(&machine, argv[1]) ||
         gcsystem_load_external(&machine, argv[2]) ||
         gcsystem_load_cart(&machine, argv[3])) return 1;
     gcsystem_reset(&machine);
     machine.cpu.wr = sound_write;
+    if (log_calls) machine.cpu.rd = sound_read;
     unsigned duration, in0, in1, in2;
     int column, row;
     unsigned room=~0u, ending=0;

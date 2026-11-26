@@ -23,6 +23,8 @@ The cartridge reloads Timer 1 every 208 master clocks. The PCM interrupt handler
 
 GBA Direct Sound reads the original decoded samples in order. At each VBlank Timer 1 supplies the playback position. Timer 0 takes its next reload from the measured mean for that 128-sample block, with a single mean period for the final source bank. Across all 24 sounds, the largest measured timing error at a VBlank on mGBA was 1.33 ms.
 
+In the sound-placement audit, the BIOS-font image grew from 7,177,704 to 7,178,220 bytes. The same 0:01 movement probe took 119 display periods before and after the changes. Visible updates went from 94 to 97 (47.58 to 49.10 per second) with the corrected cue order.
+
 ## Combat timing checks
 
 An original typewriter save provided diagnostic starting points in rooms adjacent to encounters. Holding Forward entered each target through an actual camera transition. Type 7 crossed the screen from the edge and dealt five damage. In the type 8 encounter, Leon reached pose 6F, then 73, and lost 15 HP per bite. Type 9 crossed Leon's lane, knocked him into pose 75 and dealt 15 damage. Type 10's tongue preceded its sustained grasp. These samples cover one entry to each encounter. Other starts, enemy combinations and random branches can produce different timings.

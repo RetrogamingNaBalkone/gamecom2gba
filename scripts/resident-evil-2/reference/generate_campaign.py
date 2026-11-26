@@ -126,8 +126,6 @@ class Pilot:
                 return self.walk(4) if self.plane==2 else self.walk(2 if self.x<left else 6,True)
             return self.interact(0,2,left,right)
         if stage==10 and 0x16 not in bag:
-            if self.plane and self.x<140:
-                return self.walk(2,True)
             return self.approach_item(2,160,185)
         if stage==13 and not ram[0x20f]&1:
             return self.push(6,box+98,box+108,20)
@@ -155,13 +153,17 @@ class Pilot:
         x,lane = self.x,self.plane
         age = self.frame-self.entered
         # Walk around furniture on the appropriate plane, then approach the door.
+        if self.room==(4,79) and plane==2 and lane==0 and x>=115:
+            return self.walk(6)
+        if self.room==(4,78) and direction==2:
+            return self.walk(4) if lane else self.walk(2,True)
         if self.room==(4,81) and self.objective==20:
             return self.walk(4) if lane else self.walk(6,True)
         if not door and direction in (2,6) and age>420 and (x>right+18 or x<left-18):
             return self.walk(0 if lane==0 else 4) if lane!=1 else self.walk(direction,True)
         if self.room==(3,34) and x>75:
             return self.walk(0) if lane==0 else self.walk(6,True)
-        if self.room==(4,81) and self.objective==19 and x<115:
+        if self.room==(4,81) and self.objective==19 and x<(145 if lane==0 else 85):
             return self.walk(4) if lane==1 else self.walk(2,True)
         if self.room==(4,25) and x>42 and plane==2 and direction==0:
             return self.walk(4) if lane==2 else self.walk(6,True)
