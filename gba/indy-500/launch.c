@@ -12,6 +12,7 @@ static const pcm_isr_t indy_pcm[] = {
     { 0 } };
 
 void indy_launch(int native_handlers) {
+    /* bit 0: PCM fast path, bit 1: idle hints */
     for (unsigned i = 0; i < sizeof entry_ram / sizeof entry_ram[0]; ++i) {
         uint16_t a = entry_ram[i].address;
         if (a >= 0xe000) gc_ext[a - 0xe000] = entry_ram[i].value;
@@ -29,6 +30,6 @@ void indy_launch(int native_handlers) {
     static const uint8_t reloads[2] = { ENTRY_TIMER0_RELOAD, ENTRY_TIMER1_RELOAD };
     static const int counts[2] = { ENTRY_TIMER0_COUNT, ENTRY_TIMER1_COUNT };
     gc_restore_timing(ENTRY_CYCLE, ENTRY_CLOCK, reloads, counts, ENTRY_DMA_BUSY, ENTRY_PENDING);
-    gc_pcm_isr = native_handlers ? indy_pcm : 0;
-    gc_idle_hints = native_handlers;
+    gc_pcm_isr = (native_handlers & 1) ? indy_pcm : 0;
+    gc_idle_hints = (native_handlers & 2) != 0;
 }

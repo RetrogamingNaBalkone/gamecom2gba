@@ -37,7 +37,7 @@ void play(void) {
     gc_media_t media = { base + assets.cart, assets.cart_size - 1, base + assets.bios };
     video_init((const uint16_t *)(base + assets.palette), base + assets.bezel);
     gc_init(&media);
-    indy_launch(1);
+    indy_launch(3);
     for (;;) {
         read_keys();
         gc_run_frame();

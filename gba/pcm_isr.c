@@ -61,7 +61,7 @@ IWRAM_CODE int gc_pcm_interrupt(void) {
     r0 = (uint8_t)(((r0 >> 1) & 7) | *bank38(1));
     *bank38(13) = (uint8_t)(r0 << 1);
     *bank38(12) = 0;
-    uint16_t entry = (uint16_t)(isr->table + (r0 << 1));
+    uint16_t entry = (uint16_t)(isr->table + (uint8_t)(r0 << 1));   /* SLL r13 is an 8-bit shift */
     uint8_t delta = gc_read(entry), low = gc_read((uint16_t)(entry + 1));
     *bank38(0) = delta;
     *bank38(1) = low;

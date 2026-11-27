@@ -45,6 +45,8 @@ These addresses were found by tracing RAM during a third-person race with car A 
 
 `80:53A3` folds the lap position with `c8 < 80 ? c8 : ~c8`, so the oval's two halves share one curve description. The thresholds `28, 30, 35, 3A, 46, 4B` select the track segment.
 
+The game moves the car once per pass of the main loop, not once per game tick. Every pass of the race handler calls `744B`, which calls `751A`. That routine adds the speed shifted right by four to `00C9` and advances the lap position on overflow. The pass also calls `7407`, which sets the engine pitch from the speed. While the loop waits for the next timer event it keeps polling the kernel event queue (`B8/BA`) and scanning the keys with NOP delays (`80:4947`). The number of passes therefore depends on CPU throughput, and so does the distance the car covers. On a Windows build of the runtime, a race window of 322 display periods ran 4,598 passes with 54 game updates. With the CPU halted between interrupts it ran 1,044 passes with 53 updates, and the car covered about 3.5 times less distance. A port must therefore keep the original's instruction throughput. It can skip work only when it charges the same number of cycles.
+
 In Tigerbyte the race shows a new picture every 6 display periods (9.95 Hz). The cartridge waits for kernel events between pictures with service `2F`, so the pace comes from BIOS timer events, not from CPU speed. A typical race picture uses about 53 blits.
 
 ## BIOS state at the cartridge entry
@@ -75,6 +77,8 @@ Extended RAM `E000–FFFF` and VRAM are not compared yet.
 ## Sound
 
 Timer 1 drives the kernel PCM handler at `2:357F` and Indy 500's own copy at `80:5C7E`. While a sample plays, the timer interrupts at 4.9152 MHz / 208. Every third interrupt writes one DAC value to `4E` and decodes a 4-bit difference through the kernel table `36D4`. Every 40 samples the handler runs the 200 Hz system tick (`35FA` and `5CFB`). The end of the sample continues at `35DC` and `5CDD`.
+
+The native fast path for these handlers produces the same DAC values: 38,565 consecutive values matched the interpreted handlers. It does not yet charge the cycles the original handler spends. On a frequent path the original takes 81–250 cycles, depending on the step and the moment of entry. The main loop therefore gets more passes, and the car drives slightly faster than on the original. The port must charge these cycles before the fast path can be used in a release.
 
 ## Hidden and unused content
 

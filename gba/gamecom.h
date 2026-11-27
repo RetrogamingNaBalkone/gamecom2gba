@@ -19,6 +19,7 @@ typedef struct {
 extern uint8_t gc_ram[0x1000];      /* I/O registers and internal RAM 0000-0FFF */
 extern uint8_t gc_ext[0x2000];      /* extended RAM E000-FFFF */
 extern gc_media_t gc_media;
+extern void (*gc_dac_hook)(uint8_t value);   /* every write to the DAC register 4E */
 extern int gc_idle_hints;   /* replace known polling loops by HALT */
 
 /* Button state, active low, as read through the key matrix (see gc_set_input). */

@@ -28,7 +28,7 @@ The runtime starts the cartridge from the BIOS's request-0 call, as on the origi
 
 The CPU core still executes cartridge instructions one at a time. It will remain as the fallback for code that is reached only indirectly. The same core, built for Windows, matched Tigerbyte RAM in every display period of a 3,100-period route. The route runs from the launch through the menus into a race. See the [lockstep check](cartridge.md#lockstep-check).
 
-The port is still too slow: 51 game.com display periods took 1,200 GBA frames. The original never idles here: it runs 9,000 to 11,000 instructions per display period, mostly decompressing graphics in BIOS page 5 (`5BEE–5C19`) and polling kernel service `4F`. The recompiled code has to reach about 20 GBA cycles per instruction.
+The port is still too slow: 51 game.com display periods took 1,200 GBA frames. Skipping idle time is not an option for this cartridge. The game advances the car on every pass of its polling main loop, so the distance covered depends on how many instructions the CPU executes ([details](cartridge.md#race-variables)). The port has to execute about 12,000 instructions per display period in every scene, in the same cycle timing as the original. Exact shortcuts remain possible: a delay loop or an interrupt handler can run natively if it charges the same cycles. The key scan's NOP delay loops alone account for about 15 % of the instructions in a race. The original never idles here: it runs 9,000 to 11,000 instructions per display period, mostly decompressing graphics in BIOS page 5 (`5BEE–5C19`) and polling kernel service `4F`. The recompiled code has to reach about 20 GBA cycles per instruction.
 
 ## Controls
 

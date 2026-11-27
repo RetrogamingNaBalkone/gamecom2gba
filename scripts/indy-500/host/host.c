@@ -18,10 +18,40 @@ static unsigned long hist[65536];
 extern int gc_frame_cycle(void);
 static long pclog_left = -1;
 extern int host_frame;
+static FILE *dac_file;
+static void log_dac(uint8_t v) { fputc(v, dac_file); }
 enum { ENTRY_FRAME = 1522 };
 static FILE *pclog;
+static uint16_t isr_sp_after;
+static long isr_start = -1; static int isr_sig; static uint16_t isr_ret; static long isr_counts[64][8]; static int isr_cost[64][8];
+static long host_cycle(void) { return (long)host_frame * 82287 + gc_frame_cycle(); }
+static uint16_t last_pc; static uint8_t last_d0; static long d0_writers[65536];
 void sm8500_profile(uint16_t pc) {
-    instructions++; hist[pc]++;
+    if (gc_ram[0xd0] != last_d0) { if (gc_ram[0xd0] > last_d0) d0_writers[last_pc]++; last_d0 = gc_ram[0xd0]; }
+    last_pc = pc;
+    if (getenv("ISRCOST")) {
+        if (pc == 0x1076 && isr_start < 0) { isr_start = host_cycle(); isr_sig = 0; isr_ret = 0; isr_sp_after = (uint16_t)(cpu.sp + 3); }
+        if (isr_start >= 0) {
+            int page = gc_ram[0x26];
+            if (page == 0x80 || page == 0x02 || pc < 0x4000) {
+                if (pc == 0x5c87 || pc == 0x3586) isr_sig |= 1;
+                if (pc == 0x5ce8 || pc == 0x35e7) isr_sig |= 2;
+                if (pc == 0x5c9c || pc == 0x359b) isr_sig |= 4;
+                if (pc == 0x5cc1 || pc == 0x35c0 || pc == 0x5cf6 || pc == 0x35f6) isr_sig |= 8;
+                if (pc == 0x5ca5 || pc == 0x35a4) isr_sig |= 16;
+                if (pc == 0x5cdd || pc == 0x5cfb || pc == 0x35dc || pc == 0x35fa) isr_sig |= 32;
+                if (pc == 0x357f) isr_sig |= 0;
+            }
+            if (pc != 0x1076 && cpu.sp == isr_sp_after) {
+                long cost = host_cycle() - isr_start;
+                int k = 0; while (k < 7 && isr_counts[isr_sig][k] && isr_cost[isr_sig][k] != cost) k++;
+                isr_cost[isr_sig][k] = (int)cost; isr_counts[isr_sig][k]++;
+                isr_start = -1;
+            }
+        }
+    }
+    instructions++;
+    if (host_frame + ENTRY_FRAME >= (getenv("HIST_FROM") ? atoi(getenv("HIST_FROM")) : 0)) hist[pc | (gc_ram[0x26] == 0x80 ? 0 : 0)]++;
     if (pclog_left < 0) {
         pclog_left = getenv("PCLOG") ? 200000 : 0;
         if (pclog_left) pclog = fopen(getenv("PCLOG"), "w");
@@ -57,8 +87,9 @@ int main(int argc, char **argv) {
     if (argc < 5) return 2;
     gc_media_t media = { load(argv[1], 0x100000), 0xfffff, load(argv[2], 0x40000) };
     gc_init(&media);
-    indy_launch(argc > 5 && !strcmp(argv[5], "native"));
+    indy_launch(argc > 5 ? (!strcmp(argv[5], "native") ? 3 : atoi(argv[5])) : 0);
     if (getenv("DMALOG")) gc_dma_hook = log_dma;
+    if (getenv("DACLOG")) { dac_file = fopen(getenv("DACLOG"), "wb"); gc_dac_hook = log_dac; }
     FILE *out = fopen(argv[4], "wb");
     if (!out) return 1;
     int frames = atoi(argv[3]), done = 0, n = 0;
@@ -80,9 +111,19 @@ int main(int argc, char **argv) {
         if (cpu.trapped) { fprintf(stderr, "trap at %04x after %d frames\n", cpu.trap_pc, done); break; }
     }
     fclose(out);
+    if (dac_file) fclose(dac_file);
     fprintf(stderr, "frames %d pc %04x instructions %lu blits %lu vram %lu\n", done, cpu.pc, instructions, blits, vram_writes);
+    for (int a = 0; a < 65536; ++a) if (d0_writers[a] > 100) fprintf(stderr, "d0 increased after %04x: %ld\n", a, d0_writers[a]);
+    if (getenv("ISRCOST"))
+        for (int g = 0; g < 64; ++g) for (int k = 0; k < 8; ++k)
+            if (isr_counts[g][k]) fprintf(stderr, "isr sig %02x cost %d count %ld\n", g, isr_cost[g][k], isr_counts[g][k]);
+    if (getenv("COUNTPC")) {
+        char *list = strdup(getenv("COUNTPC"));
+        for (char *t = strtok(list, ","); t; t = strtok(0, ","))
+            fprintf(stderr, "pc %s: %lu\n", t, hist[strtoul(t, 0, 16)]);
+    }
     if (getenv("HIST")) {
-        for (int k = 0; k < 30; ++k) {
+        for (int k = 0; k < (getenv("HIST_N") ? atoi(getenv("HIST_N")) : 30); ++k) {
             unsigned best = 0;
             for (unsigned a = 1; a < 65536; ++a) if (hist[a] > hist[best]) best = a;
             fprintf(stderr, "  %04x %lu\n", best, hist[best]);

@@ -101,8 +101,8 @@ uint8_t gc_lcdc(void) { return gc_ram[0x30]; }
 
 /* Loops that only poll state changed by interrupt handlers. Taking their backward
  * branch is equivalent to halting until the next interrupt and rechecking. */
+void (*gc_dac_hook)(uint8_t value);
 int gc_idle_hints = 1;
-
 int gc_idle_loop(uint16_t branch, uint16_t target) {
     if (!gc_idle_hints) return 0;
     /* BIOS page 5, event wait while a PCM sample plays: 43F3 BBS A8,#0,43CE. */
@@ -143,6 +143,7 @@ IWRAM_CODE void gc_write(uint16_t a, uint8_t v) {
     case 0x1f: cpu.ps1 = v; return;
     case 0x25: case 0x26: case 0x27: case 0x28: gc_ram[a] = v; map_window(a - 0x25); return;
     case 0x2b: gc_ram[a] = v; uart_left = 5000; gc_ram[0x2d] |= 2; return;
+    case 0x4e: gc_ram[a] = v; if (gc_dac_hook) gc_dac_hook(v); return;
     case 0x34:
         gc_ram[a] = v;
         if (v & 0x80) { dma_armed = 1; dma_age = 0; }
