@@ -17,7 +17,7 @@ No game data is included. You supply the ROM, and the converter checks that it i
 | Batman & Robin | Planned |
 | Castlevania | Planned |
 | Fighters Megamix | Planned |
-| Indy 500 | Planned |
+| Indy 500 | In development: boots in mGBA through the shared SM8500 runtime, not playable yet. → [Port status](docs/indy-500/indy-500.md) |
 | Jurassic Park | Planned |
 | Mortal Kombat Trilogy | Planned |
 | Sonic Jam | Planned |
@@ -39,6 +39,7 @@ For Resident Evil 2, pass your US cartridge dump to the same converter. It write
 
 - [Duke Nukem 3D: player guide](docs/duke3d/duke-nukem-3d.md)
 - [Duke Nukem 3D: bonus maps and sounds on the original cartridge](docs/duke3d/duke-nukem-3d-original-assets.md)
+- [Indy 500: port status](docs/indy-500/indy-500.md) and [cartridge research](docs/indy-500/cartridge.md)
 - [Duke Nukem 3D: development notes](docs/duke3d/duke-nukem-3d-development.md): building, tests, rendering, and Ghidra research
 
 ## Cartridge research

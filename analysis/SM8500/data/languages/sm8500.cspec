@@ -3,6 +3,28 @@
   <stackpointer register="SP" space="ram" growth="negative"/>
   <returnaddress><varnode space="stack" offset="0" size="2"/></returnaddress>
   <default_proto><prototype name="__cart" extrapop="2" stackshift="2">
-    <input/><output/><unaffected><register name="SP"/></unaffected>
+    <input>
+      <pentry minsize="1" maxsize="1"><register name="r0"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r1"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r2"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r3"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r4"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r5"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r6"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r7"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r8"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r9"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r10"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r11"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r12"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r13"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r14"/></pentry>
+      <pentry minsize="1" maxsize="1"><register name="r15"/></pentry>
+    </input>
+    <output>
+      <pentry minsize="1" maxsize="1"><register name="r0"/></pentry>
+      <pentry minsize="2" maxsize="2"><register name="rr0"/></pentry>
+    </output>
+    <unaffected><register name="SP"/></unaffected>
   </prototype></default_proto>
 </compiler_spec>

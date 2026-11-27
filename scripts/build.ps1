@@ -34,10 +34,22 @@ try {
     }
     Run $zig (@('ld.lld','--oformat=binary','-T',"$root/gba/resident-evil-2/rom.ld") + $objects + @('-o',"$stage/re2.bin"))
     Run $fix @("$stage/re2.bin",'-tRE2-GAMECOM','-cGRE2','-m00')
-    $sources = @(Get-ChildItem "$root/converter/*.cs","$root/converter/duke3d/*.cs","$root/converter/resident-evil-2/*.cs" | ForEach-Object FullName)
+    Run $zig @('cc','-target','arm-freestanding-eabi','-mcpu=arm7tdmi','-c',"$root/gba/indy-500/start.S",'-o',"$stage/indy-start.o")
+    $objects = @("$stage/indy-start.o")
+    foreach ($source in @(Get-ChildItem "$root/gba/*.c","$root/gba/indy-500/*.c")) {
+        $object = "$stage/indy-$($source.BaseName).o"
+        $mode = if (@('sm8500','gamecom','pcm_isr') -contains $source.BaseName) { 'arm-freestanding-eabi' } else { 'thumb-freestanding-eabi' }
+        Run $zig @('cc','-target',$mode,'-mcpu=arm7tdmi','-O2','-ffreestanding','-fno-unwind-tables','-fno-exceptions','-Wall','-Werror','-c',$source.FullName,'-o',$object)
+        $objects += $object
+    }
+    Run $zig (@('ld.lld','-T',"$root/gba/indy-500/rom.ld") + $objects + @('-o',"$stage/indy.elf"))
+    Run $zig @('objcopy','-O','binary',"$stage/indy.elf","$stage/indy.bin")
+    Copy-Item "$stage/indy.elf" ([IO.Directory]::CreateDirectory("$build/indy-500").FullName + "/runtime.elf")
+    Run $fix @("$stage/indy.bin",'-tINDY-GAMECOM','-cGIND','-m00')
+    $sources = @(Get-ChildItem "$root/converter/*.cs","$root/converter/duke3d/*.cs","$root/converter/resident-evil-2/*.cs","$root/converter/indy-500/*.cs" | ForEach-Object FullName)
     $executable = 'gamecom2gba.exe'
     $stagedExe = Join-Path $stage $executable
-    Run $csc (@('/nologo','/optimize+','/reference:System.IO.Compression.dll',"/resource:$stage/runtime.bin,runtime","/resource:$stage/re2.bin,resident-evil-2","/out:$stagedExe") + $sources)
+    Run $csc (@('/nologo','/optimize+','/reference:System.IO.Compression.dll',"/resource:$stage/runtime.bin,runtime","/resource:$stage/re2.bin,resident-evil-2","/resource:$stage/indy.bin,indy-500","/out:$stagedExe") + $sources)
     $target = Join-Path $dist $executable
     if ([IO.File]::Exists($target)) {
         $backup = "$stage/previous.exe"
