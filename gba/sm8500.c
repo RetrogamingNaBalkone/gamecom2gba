@@ -9,11 +9,15 @@ __attribute__((section(".iwram.data"))) sm8500_t cpu;
 
 static const uint8_t pair_reg[8] = { 0, 8, 2, 10, 4, 12, 6, 14 };
 
+static int bus;   /* byte accesses of the current instruction after its opcode */
+
 static inline uint8_t rb(uint16_t a) {
+    bus++;
     if (a < 0x10) return cpu.reg[(cpu.ps0 & 0xf8) + a];
     return gc_read(a);
 }
 static inline void wb(uint16_t a, uint8_t v) {
+    bus++;
     if (a < 0x10) { cpu.reg[(cpu.ps0 & 0xf8) + a] = v; return; }
     gc_write(a, v);
 }
@@ -285,24 +289,13 @@ void sm8500_reset_state(void) {
     for (unsigned i = 0; i < sizeof cpu; ++i) ((uint8_t *)&cpu)[i] = 0;
 }
 
-/* Base cycle counts per opcode (MAME sm85ops.h annotations). */
-static const uint8_t cycles_of[256] = {
-    4,5,4,4,4,4,4,4,4,4,4,4,4,7,6,9, 5,5,5,5,5,5,5,5,8,8,6,7,12,12,12,12,
-    7,7,7,7,7,7,7,7,6,8,6,6,6,4,4,6, 8,8,8,8,8,8,8,8,8,8,11,11,7,4,6,6,
-    6,6,6,6,6,6,6,6,6,6,8,9,24,24,6,6, 6,6,6,6,6,6,6,6,6,6,7,6,47,44,9,8,
-    9,10,10,10,10,14,14,14,9,10,10,10,10,13,13,13, 10,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-    10,6,6,6,6,6,6,6,10,6,6,6,6,6,6,6, 6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-    4,6,6,6,6,6,6,6,4,6,6,6,6,6,6,6, 4,6,6,6,6,6,6,6,4,6,6,6,6,6,6,6,
-    4,6,6,6,6,6,6,6,4,6,6,6,6,6,6,6, 8,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-    12,6,6,6,6,6,6,6,6,6,6,6,6,6,6,12, 2,2,6,6,6,6,6,6,10,12,2,2,2,2,2,2,
-};
-
 #ifdef SM8500_PROFILE
 void sm8500_profile(uint16_t pc);
 #endif
 
 IWRAM_CODE void sm8500_run(void) {
-    while (cpu.cycles > 0 && !cpu.trapped) {
+    cpu.yield = 0;
+    while (cpu.cycles > 0 && !cpu.trapped && !cpu.yield) {
         if (cpu.pending) take_interrupts();
         if (cpu.halted || cpu.stopped) return;
         uint16_t at = cpu.pc;
@@ -311,7 +304,8 @@ IWRAM_CODE void sm8500_run(void) {
 #endif
         uint8_t op = fetch(), m, d, a1, a2;
         uint16_t p, t;
-        cpu.cycles -= cycles_of[op];
+        int cyc = -1;   /* fixed timing; otherwise two cycles per operand or data access */
+        bus = 0;
         if (op <= 0x0f) {
             uint8_t r = fetch(), v = rb(r);
             if (op == 0x0e) push8(v);
@@ -351,11 +345,12 @@ IWRAM_CODE void sm8500_run(void) {
             m = fetch(); uint8_t disp = fetch(); int8_t off = (int8_t)fetch();
             p = (m & 0x38) ? (uint16_t)(disp + rb((m >> 3) & 7)) : (uint16_t)(0xff00 + disp);
             int set = (rb(p) >> (m & 7)) & 1;
-            if (op == 0x2a ? !set : set) { cpu.pc = (uint16_t)(cpu.pc + off); cpu.cycles -= 4; }
+            cyc = 10;
+            if (op == 0x2a ? !set : set) { cpu.pc = (uint16_t)(cpu.pc + off); cyc = (m & 0x38) ? 14 : 16; }
             break;
         }
         case 0x2c: a1 = fetch(); t = rw(a1); ww(a1, (t & 0x80) ? (uint16_t)(t | 0xff00) : (uint16_t)(t & 0xff)); break;
-        case 0x2e: cpu.ps0 = fetch(); break;
+        case 0x2e: cpu.ps0 = fetch(); bus++; break;
         case 0x2f: a1 = fetch(); a2 = fetch(); cpu.ps1 &= (uint8_t)~(SM_FV | SM_FZ);
             if (!(rb(a1) & a2)) cpu.ps1 |= SM_FZ; break;
         case 0x30: case 0x31: case 0x32: case 0x33: case 0x34: case 0x35: case 0x36: case 0x37:
@@ -367,11 +362,16 @@ IWRAM_CODE void sm8500_run(void) {
         case 0x3c: m = fetch(); if (!(m & 0xc0)) ww(pair_reg[(m >> 3) & 7], rw(pair_reg[m & 7])); break;
         case 0x3e: case 0x3f:
             m = fetch();
-            if (!(m & 0xc0)) t = rw(pair_reg[m & 7]);
-            else if ((m & 0xc0) == 0x40) {
+            if (!(m & 0xc0)) {
+                t = rw(pair_reg[m & 7]);
+                cyc = op == 0x3e ? 7 : (cpu.sys & 0x40) ? 14 : 11;
+            } else if ((m & 0xc0) == 0x40) {
                 uint16_t e = fetchw();
-                if (m & 0x38) e = (uint16_t)(e + rb((m >> 3) & 7));
+                int indexed = (m & 0x38) != 0;
+                if (indexed) e = (uint16_t)(e + rb((m >> 3) & 7));
                 t = rw(e);
+                cyc = op == 0x3e ? (indexed ? 19 : 15)
+                    : (cpu.sys & 0x40) ? (indexed ? 26 : 22) : (indexed ? 23 : 19);
             } else { cpu.trapped = 1; cpu.trap_pc = at; return; }
             if (op == 0x3f) push16(cpu.pc);
             cpu.pc = t;
@@ -379,7 +379,7 @@ IWRAM_CODE void sm8500_run(void) {
         case 0x40: case 0x41: case 0x42: case 0x43: case 0x44: case 0x45: case 0x46: case 0x47:
             a1 = fetch(); a2 = fetch(); alu8(op, a2, rb(a1)); break;
         case 0x48: a1 = fetch(); a2 = fetch(); wb(a2, rb(a1)); break;
-        case 0x49: t = fetchw(); push16(cpu.pc); cpu.pc = t; break;
+        case 0x49: t = fetchw(); push16(cpu.pc); cpu.pc = t; cyc = (cpu.sys & 0x40) ? 12 : 10; break;
         case 0x4a: a1 = fetch(); a2 = fetch(); ww(a2, rw(a1)); break;
         case 0x4b: a1 = fetch(); t = fetchw(); ww(a1, t); break;
         case 0x4c: case 0x4d: {
@@ -388,6 +388,7 @@ IWRAM_CODE void sm8500_run(void) {
             ww(a2, r);
             cpu.ps1 &= (uint8_t)~(SM_FZ | SM_FV);
             if (!r) cpu.ps1 |= SM_FZ;
+            cyc = 24;
             break;
         }
         case 0x4e: {
@@ -426,12 +427,14 @@ IWRAM_CODE void sm8500_run(void) {
             uint8_t dv = rb((uint16_t)(a1 + 1));
             if (dv) { uint16_t n = rw(a2), q = (uint16_t)(n / dv); wb(a1, (uint8_t)(n % dv)); ww(a2, q); if (!q) cpu.ps1 |= SM_FZ; }
             else cpu.ps1 |= SM_FV;
+            cyc = 47;
             break;
         }
         case 0x5d:
             a1 = fetch(); a2 = fetch(); cpu.ps1 &= (uint8_t)~(SM_FZ | SM_FV);
             if (a1) { uint16_t q = (uint16_t)(rw(a2) / a1); ww(a2, q); if (!q) cpu.ps1 |= SM_FZ; }
             else cpu.ps1 |= SM_FV;
+            cyc = 44;
             break;
         case 0x5e: a1 = fetch(); m = fetch(); a2 = fetch(); wb(a1, (uint8_t)((rb(a1) & m) | rb(a2))); break;
         case 0x5f: a1 = fetch(); m = fetch(); a2 = fetch(); wb(a1, (uint8_t)((rb(a1) & m) | a2)); break;
@@ -442,7 +445,8 @@ IWRAM_CODE void sm8500_run(void) {
         case 0x70: case 0x71: case 0x72: case 0x73: case 0x74: case 0x75: case 0x76: case 0x77: {
             int8_t off = (int8_t)fetch(); uint8_t v = (uint8_t)(rb(op & 7) - 1);
             wb(op & 7, v);
-            if (v) { cpu.pc = (uint16_t)(cpu.pc + off); cpu.cycles -= 4; }
+            cyc = 6;
+            if (v) { cpu.pc = (uint16_t)(cpu.pc + off); cyc = 10; }
             break;
         }
         case 0x78: case 0x79: case 0x7a: case 0x7b: case 0x7c: case 0x7d: case 0x7e: case 0x7f:
@@ -451,12 +455,14 @@ IWRAM_CODE void sm8500_run(void) {
             if (op >= 0x80 && op <= 0x8f) {
                 uint8_t r = fetch(); int8_t off = (int8_t)fetch();
                 int set = (rb(r) >> (op & 7)) & 1;
+                cyc = 6;
                 if ((op & 8) ? set : !set) {
-                    cpu.pc = (uint16_t)(cpu.pc + off); cpu.cycles -= 4;
-                    if (off < 0 && gc_idle_loop(at, cpu.pc)) { cpu.halted = 1; return; }
+                    cpu.pc = (uint16_t)(cpu.pc + off); cyc = 10;
+                    if (off < 0 && gc_idle_loop(at, cpu.pc)) { cpu.cycles -= cyc; cpu.halted = 1; return; }
                 }
             } else if (op >= 0x90 && op <= 0x9f) {
                 t = fetchw(); if (cond(op & 15)) cpu.pc = t;
+                cyc = 6;
             } else if (op >= 0xa0 && op <= 0xaf) {
                 uint8_t r = fetch(), v = rb(r), bit = (uint8_t)(1 << (op & 7));
                 wb(r, (op & 8) ? (uint8_t)(v | bit) : (uint8_t)(v & ~bit));
@@ -466,14 +472,16 @@ IWRAM_CODE void sm8500_run(void) {
             else if (op >= 0xc8 && op <= 0xcf) { uint8_t i = fetch(); wb((uint16_t)(0x10 + (op & 7)), i); }
             else if (op >= 0xd0 && op <= 0xdf) {
                 int8_t off = (int8_t)fetch();
-                if (cond(op & 15)) { cpu.pc = (uint16_t)(cpu.pc + off); cpu.cycles -= 4; }
+                cyc = 4;
+                if (cond(op & 15)) { cpu.pc = (uint16_t)(cpu.pc + off); cyc = 8; }
             } else if (op >= 0xe0 && op <= 0xef) {
                 uint8_t i = fetch(); push16(cpu.pc); cpu.pc = (uint16_t)(0x1000 | (op & 15) << 8 | i);
+                cyc = (cpu.sys & 0x40) ? 12 : 9;
             } else switch (op) {
                 case 0xf0: cpu.stopped = 1; break;
                 case 0xf1: cpu.halted = 1; break;
-                case 0xf8: cpu.pc = pop16(); break;
-                case 0xf9: cpu.ps1 = pop8(); cpu.pc = pop16(); break;
+                case 0xf8: cpu.pc = pop16(); cyc = (cpu.sys & 0x40) ? 10 : 8; break;
+                case 0xf9: cpu.ps1 = pop8(); cpu.pc = pop16(); cyc = 8; break;
                 case 0xfa: cpu.ps1 &= (uint8_t)~SM_FC; break;
                 case 0xfb: cpu.ps1 ^= SM_FC; break;
                 case 0xfc: cpu.ps1 |= SM_FC; break;
@@ -483,5 +491,10 @@ IWRAM_CODE void sm8500_run(void) {
                 default: cpu.trapped = 1; cpu.trap_pc = at; return;
             }
         }
+        if (cyc < 0) { cyc = 2 * (bus - 1); if (cyc < 2) cyc = 2; }
+        cpu.cycles -= cyc;
+        cpu.last_cycles = (uint8_t)cyc;
+        /* Return at HALT so the scheduler can start an armed blit before any wake-up. */
+        if (cpu.halted || cpu.stopped) return;
     }
 }

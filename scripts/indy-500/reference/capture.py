@@ -143,7 +143,7 @@ def capture(tape_lines, output, originals=ROOT / "originals", tigerbyte=None, zi
         if len(run.stdout) != SNAPSHOT * len(snapshots):
             raise RuntimeError("Incomplete capture")
         output.mkdir(parents=True, exist_ok=False)
-        for name in ("trace.csv", "dma.csv", "audio.pcm", "coverage.bin", "watch.csv", "entry-state.bin"):
+        for name in ("trace.csv", "dma.csv", "audio.pcm", "coverage.bin", "watch.csv", "entry-state.bin", "entry-state.bin.phase"):
             if (stage / name).exists():
                 shutil.copyfile(stage / name, output / name)
         for i, (frame, label) in enumerate(snapshots):

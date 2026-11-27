@@ -10,6 +10,8 @@ The supported US cartridge has 1,048,576 bytes and the SHA-256 `58cc3a3a4c33fec4
 | BIOS kernel in Ghidra | `py analysis/gamecom-bios/import-bios.py --fresh` |
 | Original capture in Tigerbyte | `py scripts/indy-500/reference/capture.py TAPE OUT [--coverage] [--watch 00cd-00ce] [--trace 0080-03ff] [--dma]` |
 | Port in mGBA | `py scripts/indy-500/mgba.py dist/indy-500.gba TAPE OUT` |
+| Lockstep check of the runtime | `py scripts/indy-500/reference/lockstep.py --frames N [--tape TAPE]` |
+| Launch snapshot for the runtime | `INDY_ENTRY_FRAME=1500 capture.py ... --coverage`, then `py scripts/indy-500/reference/entry_state.py OUT/entry-state.bin` |
 
 The Ghidra module in `analysis/SM8500` now covers the full SM8521 instruction set. `analysis/SM8500/generate.py` produces the SLEIGH file. Compile it with Ghidra's `sleigh` tool and copy `sm8500.sla`, the `.slaspec` and the support files into `Ghidra/Processors/SM8500/data/languages`. The language version is now 2.0, so older private projects such as `build/resident-evil-2/ghidra` must be imported again.
 
@@ -47,7 +49,28 @@ In Tigerbyte the race shows a new picture every 6 display periods (9.95 Hz). The
 
 ## BIOS state at the cartridge entry
 
-The BIOS calls `80:4020` with request 3, `SP=03F4`, `PS0=00`, `PS1=24` and `SYS=46`. Timers are stopped. Only the clock interrupt is enabled. 135 non-zero bytes of RAM, I/O and extended RAM and eight register-file bytes describe the rest. `gba/indy-500/entry_state.h` holds this snapshot. The port starts from it and returns into the BIOS launcher through the stack, as the original does. The internal ROM only provides interrupt vectors: each vector jumps to the kernel at `2039 + 3n`. The runtime supplies these jumps.
+The BIOS calls `80:4020` three times on the tested route. At frame 62 of the boot it calls request 3, and again at frame 1266, after the cartridge icon was touched. At frame 1522 it calls request 0 with `SP=03FD`, `PS0=00`, `PS1=41` and `SYS=46`. That call starts the game. At that moment timer 1 is running as the 200 Hz system tick (reload 24, divider 1024), and DMA and UART requests are pending.
+
+`gba/indy-500/entry_state.h` holds the snapshot of this call: 248 non-zero bytes of I/O, RAM and extended RAM, the register file, and the timing phase. The phase gives the cycle within the display period, the clock-timer accumulator, the timer counters and the pending requests. The runtime starts from this snapshot. The internal ROM is needed only for its interrupt vectors and their three-byte jumps to `2039 + 3n`. The runtime supplies these stubs, so their execution time matches the original.
+
+## Lockstep check
+
+`scripts/indy-500/host/host.c` builds the GBA runtime core for Windows. `lockstep.py` runs it next to Tigerbyte on the same tape and compares RAM `0010–03FF` after every display period. Timing follows the reference cycle for cycle:
+
+- 2 cycles per operand or data access, and fixed counts for branches, calls, returns, MULT and DIV;
+- 82,287 cycles per display period;
+- a HALT returns control at once, so an armed blit starts before a pending request wakes the CPU;
+- a halted CPU idles in 4-cycle steps;
+- a write to a timer, DMA, clock or interrupt register ends the current slice of execution.
+
+The PCM fast path and the idle hints change the cycle timing, so this check runs without them.
+
+| Route after the launch | Display periods | Result |
+|---|---|---|
+| No input: intro to the main menu | 1,200 (frames 1522–2721) | RAM matched |
+| START, car A, AT, introduction, race with A held, steering and the crash into the wall | 3,100 (frames 1522–4621) | RAM matched |
+
+Extended RAM `E000–FFFF` and VRAM are not compared yet.
 
 ## Sound
 

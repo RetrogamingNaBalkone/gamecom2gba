@@ -21,18 +21,21 @@ static const uint8_t unmapped[0x2000];
 
 static const int timer_divisor[8] = { 1, 1024, 2048, 4096, 8192, 16384, 32768, 65536 };
 
-/* Internal ROM interrupt vectors: each line jumps to its kernel entry at 2039 + 3n. */
-uint16_t gc_vector(uint8_t index) {
-    switch (index) {
-    case 0x02: return 0x2039;   /* timer 0 */
-    case 0x06: return 0x203c;   /* external */
-    case 0x08: return 0x203f;   /* UART */
-    case 0x0e: return 0x2042;   /* LCDC */
-    case 0x12: return 0x2045;   /* timer 1 */
-    case 0x16: return 0x2048;   /* clock */
-    case 0x1a: return 0x204b;   /* PIO */
-    default: return 0x1085;     /* IRET */
+/* Internal ROM: the interrupt vector table at 1000 and the stubs at 106A, each a
+ * three-byte JMP to the kernel entry 2039 + 3n, followed by an IRET at 1085. */
+static const uint16_t vectors[16] = { 0x1085, 0x106a, 0x1085, 0x106d, 0x1070, 0x1085, 0x1085, 0x1073,
+                                      0x1085, 0x1076, 0x1085, 0x1079, 0x1085, 0x107c, 0x107f, 0x1082 };
+
+uint16_t gc_vector(uint8_t index) { return vectors[index >> 1]; }
+
+static uint8_t internal_rom(uint16_t a) {
+    if (a < 0x1020) { uint16_t v = vectors[(a - 0x1000) >> 1]; return (a & 1) ? (uint8_t)v : (uint8_t)(v >> 8); }
+    if (a >= 0x106a && a < 0x1085) {
+        int k = (a - 0x106a) / 3, o = (a - 0x106a) % 3;
+        uint16_t target = (uint16_t)(0x2039 + 3 * k);
+        return o == 0 ? 0x98 : o == 1 ? (uint8_t)(target >> 8) : (uint8_t)target;
     }
+    return a == 0x1085 ? 0xf9 : 0xff;
 }
 
 static void map_window(int w) {
@@ -68,9 +71,13 @@ static void scan_keys(void) {
     }
 }
 
+void (*gc_dma_hook)(int frame_cycle, uint8_t dmc);
+static int dma_cycle;
+
 static void run_dma(void) {
     gc_blit_t b;
     dma_armed = 0;
+    if (gc_dma_hook) gc_dma_hook(dma_cycle, gc_ram[0x34]);
     b.dmc = gc_ram[0x34]; b.sx = gc_ram[0x35]; b.sy = gc_ram[0x36]; b.w = gc_ram[0x37];
     b.h = gc_ram[0x38]; b.dx = gc_ram[0x39]; b.dy = gc_ram[0x3a]; b.pal = gc_ram[0x3b];
     b.bank = gc_ram[0x3c]; b.page = gc_ram[0x3d]; b.lch = gc_ram[0x31];
@@ -94,7 +101,10 @@ uint8_t gc_lcdc(void) { return gc_ram[0x30]; }
 
 /* Loops that only poll state changed by interrupt handlers. Taking their backward
  * branch is equivalent to halting until the next interrupt and rechecking. */
+int gc_idle_hints = 1;
+
 int gc_idle_loop(uint16_t branch, uint16_t target) {
+    if (!gc_idle_hints) return 0;
     /* BIOS page 5, event wait while a PCM sample plays: 43F3 BBS A8,#0,43CE. */
     if (branch == 0x43f3 && target == 0x43ce && gc_ram[0x26] == 0x05) return 1;
     return 0;
@@ -111,14 +121,7 @@ IWRAM_CODE uint8_t gc_read(uint16_t a) {
         }
         return gc_ram[a];
     }
-    if (a < 0x2000) {
-        if (a < 0x1020) {
-            static const uint8_t lines[16] = { 0, 0x02, 0, 0x06, 0x08, 0, 0, 0x0e, 0, 0x12, 0, 0x16, 0, 0x1a, 0, 0 };
-            uint16_t v = gc_vector(lines[(a - 0x1000) >> 1]);
-            return (a & 1) ? (uint8_t)v : (uint8_t)(v >> 8);
-        }
-        return a == 0x1085 ? 0xf9 : 0xff;
-    }
+    if (a < 0x2000) return internal_rom(a);
     if (a < 0xa000) return window[(a - 0x2000) >> 13][a & 0x1fff];
     if (a < 0xe000) return 0;
     return gc_ext[a - 0xe000];
@@ -129,6 +132,8 @@ IWRAM_CODE void gc_write(uint16_t a, uint8_t v) {
     if (a >= 0xa000) { video_vram_write((uint16_t)(a - 0xa000), v); return; }
     if (a >= 0x1000) return;
     if (a >= 0x80) { gc_ram[a] = v; return; }
+    /* Registers that move the next timer, DMA, clock or interrupt event. */
+    if ((a >= 0x10 && a <= 0x13) || a == 0x1a || a == 0x34 || (a >= 0x50 && a <= 0x53)) cpu.yield = 1;
     switch (a) {
     case 0x15: case 0x16: gc_ram[a] = v; scan_keys(); return;
     case 0x19: cpu.sys = v; gc_ram[a] = v; return;
@@ -166,7 +171,7 @@ static void advance(int cycles) {
         gc_ram[0x34] &= 0x7f;
         sm8500_raise(SM_IRQ_DMA);
     }
-    if (dma_armed && (dma_age += cycles) > 2000) run_dma();
+    if (dma_armed && (dma_age += cycles) > 2000) { dma_cycle = -1; run_dma(); }
     if (uart_left > 0 && (uart_left -= cycles) <= 0) { uart_left = 0; sm8500_raise(SM_IRQ_UART); }
     for (int t = 0; t < 2; ++t) {
         uint8_t control = gc_ram[0x50 + 2 * t];
@@ -200,34 +205,69 @@ static int next_event(void) {
     }
     if (dma_busy > 0 && dma_busy < n) n = dma_busy;
     if (uart_left > 0 && uart_left < n) n = uart_left;
+    if (dma_armed && 2001 - dma_age < n) n = 2001 - dma_age;
+    if (gc_ram[0x1a] & 0x80) {
+        uint32_t period = (gc_ram[0x1a] & 0x40) ? GC_CYCLES_PER_SECOND * 60u : GC_CYCLES_PER_SECOND;
+        if (period - clock_accum < (uint32_t)n) n = (int)(period - clock_accum);
+    }
     return n < 1 ? 1 : n;
+}
+
+static int first_frame;
+
+void gc_restore_timing(int frame_cycle, uint32_t clock, const uint8_t reloads[2], const int counts[2],
+                       int busy, uint16_t pending) {
+    first_frame = GC_CYCLES_PER_FRAME - frame_cycle;
+    clock_accum = clock;
+    for (int t = 0; t < 2; ++t) { reload[t] = reloads[t]; timer_count[t] = counts[t]; }
+    dma_busy = busy;
+    cpu.pending = pending;
 }
 
 uint32_t gc_frames;
 
+static int frame_left, slice_running;
+int gc_frame_cycle(void) { return GC_CYCLES_PER_FRAME - frame_left + (slice_running ? slice_running - cpu.cycles : 0); }
+
 void gc_run_frame(void) {
     gc_frames++;
     int left = GC_CYCLES_PER_FRAME;
+    if (first_frame) { left = first_frame; first_frame = 0; }
     gc_ram[0x32] &= 0x7f;
     while (left > 0 && !cpu.trapped) {
+        frame_left = left;
         int slice = next_event();
         if (slice > left) slice = left;
-        if (cpu.halted && dma_armed) run_dma();
         if (cpu.halted || cpu.stopped) {
             if (cpu.pending) {
                 cpu.cycles = 1;
                 sm8500_run();
-                if (!cpu.halted && !cpu.stopped) continue;
+                if (!cpu.halted && !cpu.stopped) {
+                    int used = 1 - cpu.cycles;
+                    advance(used);
+                    left -= used;
+                    continue;
+                }
             }
+            /* A halted CPU idles in four-cycle steps until a request wakes it. */
+            slice = (slice + 3) & ~3;
             advance(slice);
             left -= slice;
             continue;
         }
         cpu.cycles = slice;
+        slice_running = slice;
         sm8500_run();
+        slice_running = 0;
         int used = slice - cpu.cycles;
         if (used < 1) used = 1;
-        advance(used);
+        if (cpu.halted && dma_armed) {
+            /* An armed blit starts when HALT executes, before the HALT cycles elapse. */
+            dma_cycle = GC_CYCLES_PER_FRAME - left + used - cpu.last_cycles;
+            advance(used - cpu.last_cycles);
+            run_dma();
+            advance(cpu.last_cycles);
+        } else advance(used);
         left -= used;
     }
     gc_ram[0x32] |= 0x80;

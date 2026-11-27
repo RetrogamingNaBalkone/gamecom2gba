@@ -14,12 +14,17 @@
 #include "sys/ppu.h"
 
 static gcsystem_t machine;
+static int current_frame;
 #ifdef INDY_COVERAGE
 static uint8_t executed[0x100000];
 static int dumped;
 static void dump_entry_state(uint16_t pc) {
     const char *path = getenv("INDY_ENTRY_STATE");
     if (dumped || !path || pc != 0x4020 || machine.bus.ram[0x26] != 0x80) return;
+    const uint8_t *bank = machine.cpu.reg + (machine.cpu.ps0 & 0xf8);
+    fprintf(stderr, "cartridge entry: frame %d request %d sp %04x\n", current_frame, bank[2], machine.cpu.sp);
+    const char *minimum = getenv("INDY_ENTRY_FRAME");
+    if (minimum && current_frame < atoi(minimum)) return;
     dumped = 1;
     FILE *f = fopen(path, "wb");
     if (!f) return;
@@ -31,9 +36,32 @@ static void dump_entry_state(uint16_t pc) {
                         machine.cpu.ps0, machine.cpu.ps1, machine.cpu.reg[(machine.cpu.ps0 & 0xf8) + 2], 0 };
     fwrite(tail, 1, 8, f);
     fclose(f);
+    /* Emulator time phase at the entry, needed to replay the cartridge in lockstep. */
+    char phase[1100];
+    snprintf(phase, sizeof phase, "%s.phase", path);
+    f = fopen(phase, "w");
+    if (!f) return;
+    const gcbus_t *b = &machine.bus;
+    fprintf(f, "frame %d\ncycle %d\nclock %u\n", current_frame, b->cur_cycle, b->ck_accum);
+    for (int t = 0; t < 2; ++t)
+        fprintf(f, "timer%d %d %u %d %d\n", t, b->timer[t].enabled, b->timer[t].reload,
+                b->timer[t].prescale_max, b->timer[t].prescale_count);
+    fprintf(f, "dma %d %d %d\nuart %d %d\nirq %u\n", b->dma_cycles_left, b->dma_armed, b->dma_arm_age,
+            b->uart_cycles_left, b->uart_level_accum, (unsigned)machine.cpu.iflags);
+    fclose(f);
 }
+static FILE *pclog;
+static long pclog_left;
 void capture_pc(uint16_t pc) {
     dump_entry_state(pc);
+    if (dumped && !pclog && getenv("INDY_PCLOG")) {
+        pclog = fopen(getenv("INDY_PCLOG"), "w");
+        pclog_left = atol(getenv("INDY_PCLOG_COUNT") ? getenv("INDY_PCLOG_COUNT") : "20000");
+    }
+    if (pclog && pclog_left > 0 && current_frame >= atoi(getenv("INDY_PCLOG_FROM") ? getenv("INDY_PCLOG_FROM") : "0")) {
+        fprintf(pclog, "%04x %d %02x %02x\n", pc, machine.bus.cur_cycle, machine.bus.ram[0x26], machine.bus.ram[0x27]);
+        if (--pclog_left == 0) fclose(pclog);
+    }
     if (pc < 0x2000 || pc >= 0xa000) return;
     uint8_t page = machine.bus.ram[0x25 + ((pc - 0x2000) >> 13)];
     if (page < 0x20) return;
@@ -41,7 +69,6 @@ void capture_pc(uint16_t pc) {
 }
 #endif
 static FILE *dma;
-static int current_frame;
 
 static void record_bus(const char *event, uint16_t address, uint8_t value) {
     const uint8_t *r = machine.bus.ram;

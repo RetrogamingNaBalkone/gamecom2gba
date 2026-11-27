@@ -24,9 +24,11 @@ Shared runtime: `gba/sm8500.c` (CPU core), `gba/gamecom.c` (machine model), `gba
 
 ## Current state
 
-The CPU core still executes cartridge instructions one at a time. It is the fallback layer that the recompiled code will use for code that is reached only indirectly. In mGBA, the image boots from the BIOS launch state and shows the Tiger Electronics logo screen on BG0. It has not been compared with a Tigerbyte capture yet. The emulated game runs at about 7.7 % of real time: 184 game.com display periods took 2,400 GBA frames.
+The runtime starts the cartridge from the BIOS's request-0 call, as on the original. In mGBA the image shows the game's first screen: the INDY 500 logo and copyright notice on BG0.
 
-A host build of the same core (`scripts/indy-500/host/host.c`) counts the original workload: 9,000 to 11,000 instructions per display period. The cartridge decompresses graphics in BIOS page 5 (`5BEE–5C19`) and polls kernel service `4F` (`2403`) in tight loops. The original CPU never idles here. The recompiled code therefore has to reach about 20 GBA cycles per instruction.
+The CPU core still executes cartridge instructions one at a time. It will remain as the fallback for code that is reached only indirectly. The same core, built for Windows, matched Tigerbyte RAM in every display period of a 3,100-period route. The route runs from the launch through the menus into a race. See the [lockstep check](cartridge.md#lockstep-check).
+
+The port is still too slow: 51 game.com display periods took 1,200 GBA frames. The original never idles here: it runs 9,000 to 11,000 instructions per display period, mostly decompressing graphics in BIOS page 5 (`5BEE–5C19`) and polling kernel service `4F`. The recompiled code has to reach about 20 GBA cycles per instruction.
 
 ## Controls
 
@@ -73,7 +75,7 @@ The race starts in third gear. Shifts during the rolling start had no effect whi
 ## Required before release
 
 1. Translator: SM8500 to Thumb code in the converter, with direct branches. Indirect jumps go through a dispatch table, and the current core serves as the fallback.
-2. Lockstep check: compare the host build with Tigerbyte RAM at the same display period from the cartridge entry onwards.
+2. Lockstep check of the recompiled code. The interpreter already matches Tigerbyte; see the [cartridge notes](cartridge.md#lockstep-check).
 3. Cars D and E on the first visit to car selection, without codes. The unlock flags written at `83:79C8` and `83:79E8` still have to be located.
 4. Audio output: the DAC values written to `4E`, played with Direct Sound.
 5. First playable route: title, START, car A, AT, one completed lap. Run it in Tigerbyte and in mGBA.
@@ -84,5 +86,6 @@ The race starts in third gear. Shifts during the rolling start had no effect whi
 | Environment | Checked |
 |---|---|
 | Tigerbyte (original) | Boot to the main menu, options, car selection, transmission choice, rolling start, acceleration to 226 mph, crash into the wall. Captures in `build/indy-500/`. |
-| mGBA (port) | Boot to the Tiger logo screen at reduced speed. |
+| Windows build of the runtime | RAM matched Tigerbyte in all 3,100 display periods from the launch through the menus, a race and the crash. |
+| mGBA (port) | Launch to the game's first screen at reduced speed. |
 | Physical GBA | Not tested. |

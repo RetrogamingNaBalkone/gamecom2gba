@@ -19,6 +19,8 @@ typedef struct {
     uint16_t trap_pc;
     uint16_t pending;        /* interrupt request lines, bit = line */
     int32_t cycles;          /* emulated cycles left in the current slice */
+    uint8_t last_cycles;     /* duration of the last executed instruction */
+    uint8_t yield;           /* end the slice after this instruction (timing registers changed) */
     uint8_t reg[0x108];      /* banked register file, bank base = PS0 & F8 */
 } sm8500_t;
 
